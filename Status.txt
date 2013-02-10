@@ -1,0 +1,46 @@
+Project Status as of:  10 February 2013
+
+BUILD ENVIRONMENT
+=================
+This software uses Eclipse with the Arduino plug-in from Jantje (www.baeyens.it)
+
+
+THC SOFTWARE STATUS
+===================
+Current software is for Rev A boards and is version "0.e".  This is fully functioning (to the extent its been tested so far) and is for a modified Rev A board.
+
+
+WINDOWS SOFTWARE STATUS
+=======================
+Windows functionality is currently limited to data when cutting.  The data is provides is:
+ - torch on status (1/0)
+ - arc good status (1/0)
+ - voltage control on (1/0)
+ - torch up signal active (1/0)
+ - torch down signal active (1/0)
+ - cutting voltage (in analog counts)
+
+The data is dumped about every 1 ms, so it can be used to graph the behavior of the system and help with algorithm development and debugging.
+
+
+HARDWARE STATUS
+===============
+
+
+Rev B Hardware
+--------------
+Waiting for boards from fab so I can assemble and test them.
+
+
+Rev A Hardware
+--------------
+Worked with some additions/corrections.  This version has been debugging/changed and is working well. (It's what I've been using.)  The following are the changes made to the board:
+- Tx/Rx lines from Arduino to opto-isolator were swapped
+- opto-isolator was too low speed and wouldn't support serial rates over 38.4K
+- forgot the zener on the op-amp input for over voltage protection
+- 30 Hz noise on the signal required addition of a single pole Butterworth filter
+
+
+Prototypes
+----------
+3 different hardware prototypes have been developed and tested. Based on this, a custom "Rev A" shield/board was produced by OSHPark.com (good board service for hobbyists).
