@@ -17,7 +17,7 @@
 
 #include "Timer.hpp"
 
-#define VERSION "0.e"
+#define VERSION "0.f"
 
 // Define the number of analog voltage readings to use to average
 //#define NUM_READINGS 10
@@ -27,7 +27,7 @@
 
 // Define the noise floor for the analog voltage so you can
 // display 0 when there is no voltage.
-#define ANALOG_VOLTAGE_NOISE_FLOOR 170
+#define ANALOG_VOLTAGE_NOISE_FLOOR 0 // 170
 
 // Define the minimum cut voltage to allow setting cruise control.
 #define MIN_CRUISE_SET_VOLTAGE 0
@@ -71,6 +71,11 @@ enum THCState_e
 	THC_STATE_CUTTING
 };
 
+enum THCUnit_e
+{
+	THC_UNIT_COUNTS = 1,
+	THC_UNIT_VOLTS= 2
+};
 
 
 typedef struct
@@ -91,6 +96,7 @@ typedef struct
 {
 		THCState_e currentState;
 		THCMode_e currentMode;
+		THCUnit_e currentUnit;
 		volatile bool torchOnState;
 		volatile bool arcGoodState;
 		volatile bool arcStateChanged;
@@ -119,8 +125,10 @@ extern volatile THCStatData usageData;
 extern StateData currentStateData;
 
 void AddSecondsToTipUse(THCStatData *usageData, unsigned int seconds);
-void sendVoltageMessage(unsigned int value, bool voltage);
+//void sendVoltageMessage(unsigned int value, bool voltage);
 void SendCutStartPacket();
+void ChangeUnit();
+void TestTorchOn(bool value);
 
 #ifdef __cplusplus
 extern "C"

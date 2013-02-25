@@ -19,6 +19,7 @@
 #include "StateCutting.hpp"
 #include "BypassMode.hpp"
 
+#include "Messages.h"
 
 // Forward declaration for command processing function.
 void processCommand(Command_e newCmd);
@@ -51,29 +52,9 @@ extern HardwareSerial Serial;
 // Default object for optional serial port for debug/PC control.
 extern HardwareSerial Serial1;
 
-bool sendRaw = true;
-bool sendFiltered = false;
-bool sendVolts = false;
-bool sendCounts = true;
 
-
-#define START_CUT_VOLTS_RAW		0x80
-#define START_CUT_VOLTS_FLTRD	0x81
-#define START_CUT_COUNT_RAW 	0x82
-#define START_CUT_COUNT_FLTRD	0x83
-
-
-void SendCutStartPacket()
-	{
-	if (sendRaw && sendVolts)
-		Serial1.write(START_CUT_VOLTS_RAW);
-	else if (sendRaw && sendCounts)
-		Serial1.write(START_CUT_COUNT_RAW);
-	else if (sendFiltered && sendVolts)
-		Serial1.write(START_CUT_COUNT_FLTRD);
-	else if (sendRaw && sendVolts)
-		Serial1.write(START_CUT_COUNT_RAW);
-	}
+// Flag value to determine when to send cutting voltages.
+bool captureOn = false;
 
 
 // Add time to the tip usage.
@@ -104,8 +85,8 @@ void setup()
 	Serial.println("\nTHC Setup Complete");
 
 	// Start the second serial port for runtime debug output.
-	Serial1.begin(38400);
-	Serial1.println(": Second serial port running\n");
+	Serial1.begin(115200);
+	//Serial1.println("\nPort 1: THC Setup Complete");
 
 	// Clear the display
 	display.clear();
@@ -130,6 +111,7 @@ void setup()
 	currentStateData.currentState = THC_STATE_ENABLED;
 	currentStateData.voltSetPoint = usageData.voltSetPoint;
 	currentStateData.kerfEncountered = false;
+	currentStateData.currentUnit = THC_UNIT_COUNTS;
 
 /*
 	for (currentStateData.index = 0; currentStateData.index < NUM_READINGS;
@@ -175,37 +157,14 @@ void readVoltage(void)
 	if (newVoltage <= ANALOG_VOLTAGE_NOISE_FLOOR)
 		currentStateData.currentVoltage = 0;
 	else
-		currentStateData.currentVoltage = newVoltage;
-/*
-	if ((unsigned int) newVoltage > currentStateData.currentVoltage)
-		delta = newVoltage - (int) currentStateData.currentVoltage;
-	else
-		delta = (int) currentStateData.currentVoltage - newVoltage;
+		currentStateData.currentVoltage = raw;
 
-
-	if (delta > 10)
-		currentStateData.currentVoltage = newVoltage;
-	else
-		{
-		// Now, calculate the new value by using 20% of the difference of the
-		// old value and the new value.
-		currentStateData.currentVoltage = currentStateData.currentVoltage +
-				((newVoltage - (int) currentStateData.currentVoltage) / 5);
-		}
-*/
-
-	if (currentStateData.torchOnState)
-		{
-		if (sendCounts)
-			{
-			if (sendRaw)
-				sendVoltageMessage(raw, false);
-			else if (sendFiltered)
-				sendVoltageMessage(currentStateData.currentVoltage, false);
-			}
-		}
-
+	if ((currentStateData.torchOnState) && captureOn)
+	{
+		sendCutVoltageMessage();
 	}
+
+}
 
 
 
@@ -213,39 +172,34 @@ void readVoltage(void)
 void handleModeChange()
 	{
 
-	//
-	// See if the user requested a mode change.
-	if (display.modeChangedPressed() == true)
+	// Only allow mode change if there is no torch on or arc good signal
+	// (this is a short-cut for checking to see if we're cutting.
+	if (!currentStateData.torchOnState && !currentStateData.arcGoodState)
 		{
-		// Only allow mode change if there is no torch on or arc good signal
-		// (this is a short-cut for checking to see if we're cutting.
-		if (!currentStateData.torchOnState && !currentStateData.arcGoodState)
+		if (currentStateData.currentMode == THC_MODE_DISABLED)
 			{
-			if (currentStateData.currentMode == THC_MODE_DISABLED)
-				{
-				DebugPrint("Mode Change to: THC_MODE_BYPASS\n");
-				currentStateData.currentMode = THC_MODE_BYPASS;
-				display.setMenu(MENU_BYPASS);
-				}
-			else if (currentStateData.currentMode  == THC_MODE_BYPASS)
-				{
-				DebugPrint("Mode Change to: THC_MODE_CRUISE\n");
-				currentStateData.currentMode = THC_MODE_CRUISE;
-				display.setMenu(MENU_CRUISE_MODE);
-				}
-			else if (currentStateData.currentMode  == THC_MODE_CRUISE)
-				{
-				DebugPrint("Mode Change to: THC_MODE_ENABLED\n");
-				currentStateData.currentMode = THC_MODE_ENABLED;
-				currentStateData.currentState = THC_STATE_ENABLED;
-				display.setMenu(MENU_OPERATING);
-				}
-			else if (currentStateData.currentMode  == THC_MODE_ENABLED)
-				{
-				DebugPrint("Mode Change to: THC_MODE_DISABLED\n");
-				currentStateData.currentMode = THC_MODE_DISABLED;
-				display.setMenu(MENU_DISABLED);
-				}
+			DebugPrint("Mode Change to: THC_MODE_BYPASS\n");
+			currentStateData.currentMode = THC_MODE_BYPASS;
+			display.setMenu(MENU_BYPASS);
+			}
+		else if (currentStateData.currentMode  == THC_MODE_BYPASS)
+			{
+			DebugPrint("Mode Change to: THC_MODE_CRUISE\n");
+			currentStateData.currentMode = THC_MODE_CRUISE;
+			display.setMenu(MENU_CRUISE_MODE);
+			}
+		else if (currentStateData.currentMode  == THC_MODE_CRUISE)
+			{
+			DebugPrint("Mode Change to: THC_MODE_ENABLED\n");
+			currentStateData.currentMode = THC_MODE_ENABLED;
+			currentStateData.currentState = THC_STATE_ENABLED;
+			display.setMenu(MENU_OPERATING);
+			}
+		else if (currentStateData.currentMode  == THC_MODE_ENABLED)
+			{
+			DebugPrint("Mode Change to: THC_MODE_DISABLED\n");
+			currentStateData.currentMode = THC_MODE_DISABLED;
+			display.setMenu(MENU_DISABLED);
 			}
 		}
 	}
@@ -307,10 +261,11 @@ void loop()
 		// This should give a little more consistent behavior.
 		while (loopWaitTimer == millis())
 			{
+			//Serial1.print(":");
 			}
 		// Reset the timer for the next loop.
 		loopWaitTimer = millis();
-
+		//Serial1.println(".");
 #ifdef DEBUG_TIMING
 		if (loopTimer.elapsedMilliSeconds() >= 1)
 			DebugPrintLn(loopTimer.elapsedMilliSeconds());
@@ -323,15 +278,226 @@ void loop()
 		// Only update the display about 5 times a second (assuming a 1 ms loop time).
 		if (++delayDisplayUpdate > 200)
 			{
-			// Use the current value to average for the display.
-			display.Display_CurrentVoltage(currentStateData.currentVoltage/7);
+			// Use the current value for the display.
+			if (currentStateData.currentUnit == THC_UNIT_VOLTS)
+				display.Display_CurrentVoltage(currentStateData.currentVoltage/7);
+			else
+				display.Display_CurrentVoltage(currentStateData.currentVoltage);
+
 			delayDisplayUpdate = 0;
+			SendVoltage(PC_RESP_CURRENT);
 			}
 
 		// Check to see if the user has requested a mode change.
 		// If so, it is handled within the routine.
-		handleModeChange();
+		if (display.modeChangedPressed() == true)
+			handleModeChange();
 
+		if (Serial1.available() > 0)
+		{
+			uint8_t buff[10];
+			uint16_t temp;
+
+			switch (Serial1.peek())
+			{
+			case PC_CMD_SYNC:
+				// Read and throw away the sync byte.
+				Serial1.read();
+				break;
+
+			case PC_CMD_STEP_MODE:
+				// Read and throw away the sync byte.
+				Serial1.read();
+				handleModeChange();
+				// Build and send the response.
+				SendMode();
+				break;
+
+			case PC_CMD_GET_MODE:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Build and send the response.
+				SendMode();
+				break;
+
+			case PC_CMD_STEP_UNIT:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Update the unit.
+				// Change the units between volts and counts.
+				if (currentStateData.currentUnit == THC_UNIT_COUNTS)
+					currentStateData.currentUnit = THC_UNIT_VOLTS;
+				else
+					currentStateData.currentUnit = THC_UNIT_COUNTS;
+
+				// Build and send the responses.
+				SendUnits();
+				SendVoltage(PC_RESP_SETPOINT);
+				SendVoltage(PC_RESP_CURRENT);
+				break;
+
+			case PC_CMD_GET_UNIT:
+				// Read the command byte and throw away.
+				Serial1.read();
+				SendUnits();
+				break;
+
+			case PC_CMD_DISPLAY_ON_OFF:
+				if (Serial1.available() < 2)
+					break;
+				// Respond to the command.
+				break;
+
+			case PC_CMD_GET_STATUS:
+				break;
+
+			case PC_CMD_SET_SETPOINT:
+				if (Serial1.available() < 3)
+					break;
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Respond to the command.
+				buff[0] = (uint8_t) Serial1.read();
+				buff[1] = (uint8_t) Serial1.read();
+				temp = (((uint16_t) buff[0]) << 8) | ((uint16_t) buff[1]);
+				if (currentStateData.currentUnit == THC_UNIT_VOLTS)
+					temp *= 7;
+				currentStateData.voltSetPoint = temp;
+				SendVoltage(PC_RESP_SETPOINT);
+				break;
+
+			case PC_CMD_GET_SETPOINT:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Build and send the response.
+				SendVoltage(PC_RESP_SETPOINT);
+				break;
+
+			case PC_CMD_GET_CURRENT:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Build and send the response.
+				SendVoltage(PC_RESP_CURRENT);
+				break;
+
+			case PC_CMD_TEST_TORCH_ON:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Toggle the torch.
+				TestTorchOn(true);
+				break;
+
+			case PC_CMD_TEST_TORCH_OFF:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Toggle the torch.
+				TestTorchOn(false);
+				break;
+
+			case PC_CMD_CAPTURE_START:
+				// Read the command byte and throw away.
+				Serial1.read();
+				captureOn = true;
+				sendVoltageCaptureState(captureOn);
+				break;
+
+			case PC_CMD_CAPTURE_STOP:
+				// Read the command byte and throw away.
+				Serial1.read();
+				captureOn = false;
+				sendVoltageCaptureState(captureOn);
+				break;
+
+			case PC_CMD_CAPTURE_GET_STATE:
+				// Read the command byte and throw away.
+				Serial1.read();
+				sendVoltageCaptureState(captureOn);
+				break;
+
+			case PC_CMD_SETPOINT_UP:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Handle the up.
+				if ((currentStateData.currentUnit == THC_UNIT_VOLTS) && (currentStateData.voltSetPoint/7 < 180))
+				{
+					currentStateData.voltSetPoint += 7;
+				}
+				else if ((currentStateData.currentUnit == THC_UNIT_COUNTS) && (currentStateData.voltSetPoint < 1020))
+				{
+					currentStateData.voltSetPoint++;
+				}
+				// Build and send the response.
+				SendVoltage(PC_RESP_SETPOINT);
+				// Update the LCD
+				display.Display_TargetVoltage(currentStateData.voltSetPoint);
+				break;
+
+			case PC_CMD_SETPOINT_DOWN:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Handle the down.
+				if ((currentStateData.currentUnit == THC_UNIT_VOLTS) && (currentStateData.voltSetPoint/7 > 50))
+				{
+					currentStateData.voltSetPoint -= 7;
+				}
+				else if ((currentStateData.currentUnit == THC_UNIT_COUNTS) && (currentStateData.voltSetPoint > 350))
+				{
+					currentStateData.voltSetPoint--;
+				}
+				// Build and send the response.
+				SendVoltage(PC_RESP_SETPOINT);
+				// Update the LCD
+				display.Display_TargetVoltage(currentStateData.voltSetPoint);
+				break;
+
+			case PC_CMD_TEST_ARC_GOOD_ON:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Turn on arc good for test
+				digitalWrite(OUT_D_ARC_GOOD, OUT_D_ARC_GOOD_ACTIVE);
+				break;
+
+			case PC_CMD_TEST_ARC_GOOD_OFF:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Turn off arc good for test
+				digitalWrite(OUT_D_ARC_GOOD, OUT_D_ARC_GOOD_NOT_ACTIVE);
+				break;
+
+			case PC_CMD_TEST_THC_UP_ON:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Turn on torch up for test
+				digitalWrite(OUT_D_TORCH_UP, OUT_D_TORCH_UP_ACTIVE);
+				break;
+
+			case PC_CMD_TEST_THC_UP_OFF:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Turn off torch up for test
+				digitalWrite(OUT_D_TORCH_UP, OUT_D_TORCH_UP_NOT_ACTIVE);
+				break;
+
+			case PC_CMD_TEST_THC_DOWN_ON:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Turn on torch down for test
+				digitalWrite(OUT_D_TORCH_DOWN, OUT_D_TORCH_DOWN_ACTIVE);
+				break;
+
+			case PC_CMD_TEST_THC_DOWN_OFF:
+				// Read the command byte and throw away.
+				Serial1.read();
+				// Turn off torch down for test
+				digitalWrite(OUT_D_TORCH_DOWN, OUT_D_TORCH_DOWN_NOT_ACTIVE);
+				break;
+
+
+
+			default:
+				break;
+			}
+		}
 		//
 		// Take the appropriate action based on the operational MODE.
 		//
@@ -381,15 +547,8 @@ void loop()
 					{
 					case THC_STATE_CUTTING:
 						//DebugPrint("STATE CUTTING\n");
-						//SendCutStartPacket();
+						SendCutStartPacket();
 
-#ifdef CAPTURE_VOLTAGE
-						Serial1.print(
-								currentStateData.cutStartTime.elapsedMilliSeconds());
-						Serial1.print(": State Cutting - Set point - ");
-						Serial1.println(currentStateData.voltSetPoint);
-						startTime = millis();
-#endif
 						break;
 
 					case THC_STATE_ENABLED:
@@ -422,42 +581,6 @@ void loop()
 	}	// loop()
 
 
-#ifdef AVERAGE_VOLTAGE
-		// Subtract the reading to be overwritten from the sum.
-		voltageSum -= currentStateData.readings[currentStateData.index];
-		// Read another voltage sample into the buffer.
-		currentStateData.readings[currentStateData.index] = analogRead(
-				IN_A_VOLTAGE);
-
-		if (currentStateData.readings[currentStateData.index] < 1)
-		currentStateData.readings[currentStateData.index] = 0;
-
-		// Add the new reading into the buffer.
-		voltageSum += currentStateData.readings[currentStateData.index];
-		currentStateData.currentVoltage = (unsigned int) (voltageSum
-				/ (unsigned long) NUM_READINGS);
-#endif
-
-#ifdef DUMP_VOLTAGE
-		// If we're cutting, output the new voltage and the average voltage.
-		if (currentStateData.currentState == THC_STATE_CUTTING)
-			{
-			Serial1.print(currentStateData.cutStartTime.elapsedMilliSeconds());
-			Serial1.print(": ");
-			Serial1.println(currentStateData.currentVoltage);
-			}
-#endif
-
-#ifdef AVERAGE_VOLTAGE
-		// Increment the circular buffer pointer and see if it needs to wrap.
-		if (++currentStateData.index >= NUM_READINGS)
-			{
-			// We've wrapped, so reset the pointer.
-			currentStateData.index = 0;
-			// Use the current value to average for the display.
-			display.Display_CurrentVoltage(currentStateData.currentVoltage);
-			}
-#endif
 
 
 
@@ -535,72 +658,22 @@ void processCommand(Command_e newCmd)
 
 	}
 
-#ifdef AVERAGE_VOLTAGE
-	unsigned long voltageSum, displayVoltageSum;
-#endif
-#ifdef AVERAGE_VOLTAGE
-	// Initialize the voltage sum to 0.
-	voltageSum = 0;
-	displayVoltageSum = 0;
-#endif
-
-#ifdef AVERAGE_VOLTAGE
-		// Subtract the reading to be overwritten from the sum.
-		voltageSum -= currentStateData.readings[currentStateData.index];
-		// Read another voltage sample into the buffer.
-		currentStateData.readings[currentStateData.index] = analogRead(
-				IN_A_VOLTAGE);
-
-		if (currentStateData.readings[currentStateData.index] < 1)
-		currentStateData.readings[currentStateData.index] = 0;
-
-		// Add the new reading into the buffer.
-		voltageSum += currentStateData.readings[currentStateData.index];
-		currentStateData.currentVoltage = (unsigned int) (voltageSum
-				/ (unsigned long) NUM_READINGS);
-#endif
 
 
-#define COUNT_MASK 			0x80
-#define TORCH_ON_MASK 		0x40
-#define ARC_GOOD_MASK 		0x20
-#define VOLT_CTL_ON_MASK 	0x10
-#define TORCH_UP_MASK		0x08
-#define TORCH_DOWN_MASK		0x04
-#define MSB_COUNTS_MASK 	0x03
 
-void sendVoltageMessage(unsigned int value, bool voltage)
-	{
-	uint8_t byte[2];
-
-	if (!voltage)
+void TestTorchOn(bool value)
+{
+	if (value)
 		{
-		byte[0] = COUNT_MASK;
-		byte[0] |= (char) ((value >> 8) & MSB_COUNTS_MASK);
+		// Turn on torch for test
+		digitalWrite(OUT_D_TORCH_RELAY, OUT_D_TORCH_RELAY_ACTIVE);
 		}
 	else
-		{
-		byte[0] = 0;
+	{
+		// Turn off torch for test
+		digitalWrite(OUT_D_TORCH_RELAY, OUT_D_TORCH_RELAY_NOT_ACTIVE);
 		}
 
-	byte[1] = (uint8_t) (value & 0xff);
-
-	if (currentStateData.torchOnState)
-		byte[0] |= TORCH_ON_MASK;
-
-	if (currentStateData.arcGoodState)
-		byte[0] |= ARC_GOOD_MASK;
-
-	if (currentStateData.runVoltageControl)
-		byte[0] |= VOLT_CTL_ON_MASK;
-
-	if (currentStateData.torchUp)
-		byte[0] |= TORCH_UP_MASK;
-
-	if (currentStateData.torchDown)
-		byte[0] |= TORCH_DOWN_MASK;
-
-	Serial1.write((const uint8_t*) byte, 2);
-	}
+}
 
 

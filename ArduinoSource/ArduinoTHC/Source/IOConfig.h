@@ -53,9 +53,9 @@
 
 
 // OUTPUTS - TO CNC
-#define OUT_D_ARC_GOOD 		46
+#define OUT_D_ARC_GOOD 		50
 #define OUT_D_TORCH_UP 		48
-#define OUT_D_TORCH_DOWN	50
+#define OUT_D_TORCH_DOWN	46
 
 // OUTPUTS - TO PLASMA
 // Output to trip relay to turn on torch
@@ -89,7 +89,7 @@
 //
 
 // Define the analog in for torch voltage sensing.
-#define IN_A_VOLTAGE (10)
+#define IN_A_VOLTAGE (8)
 
 
 

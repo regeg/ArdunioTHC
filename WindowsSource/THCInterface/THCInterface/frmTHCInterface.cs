@@ -13,8 +13,55 @@ using System.IO;
 
 namespace SerialDataCapture
 {
+    public enum THC_COMMAND
+    {
+        THC_CMD_SYNC = 0,
+        THC_CMD_STEP_MODE = 1,
+        THC_CMD_GET_MODE = 2,
+        THC_CMD_SET_SETPOINT = 3,
+        THC_CMD_GET_SETPOINT = 4,
+        THC_CMD_DISPLAY_ON_OFF = 5,
+        THC_CMD_GET_STATUS = 6,
+        THC_CMD_STEP_UNIT = 7,
+        THC_CMD_GET_UNIT = 8,
+        THC_CMD_GET_CURRENT = 9,
+        THC_CMD_TEST_TORCH_ON = 10,
+        THC_CMD_TEST_TORCH_OFF = 11,
+        THC_CMD_SETPOINT_UP = 12,
+        THC_CMD_SETPOINT_DOWN = 13,
+        THC_CMD_TEST_ARC_GOOD_ON = 14,
+        THC_CMD_TEST_ARC_GOOD_OFF = 15,
+        THC_CMD_TEST_TORCH_UP_ON = 16,
+        THC_CMD_TEST_TORCH_UP_OFF = 17,
+        THC_CMD_TEST_TORCH_DOWN_ON = 18,
+        THC_CMD_TEST_TORCH_DOWN_OFF = 19,
+        THC_CMD_CAPTURE_START = 20,
+        THC_CMD_CAPTURE_STOP = 21,
+        THC_CMD_CAPTURE_GET_STATE = 22
+    }
 
-   public enum THC_MODE
+    public enum THC_UNIT
+    {
+        THC_UNIT_COUNT = 1,
+        THC_UNIT_VOLT = 2
+    }
+
+    public enum THC_RESPONSE
+    {
+        THC_RESP_SYNC = 0,
+        THC_RESP_MODE = 1,
+        THC_RESP_SETPOINT = 2,
+        THC_RESP_STATUS = 3,
+        THC_RESP_UNIT = 4,
+        THC_RESP_CURRENT = 5,
+        THC_RESP_START_CUT = 6,
+        THC_RESP_CAPTURE_OFF = 7,
+        THC_RESP_CAPTURE_ON = 8,
+        THC_RESP_CUT_PACKET = 9,
+        THC_RESP_END_CUT = 10
+    };
+
+    public enum THC_MODE
     {
         THC_MODE_DISABLED = 0,
         THC_MODE_BYPASS = 1,
@@ -32,6 +79,7 @@ namespace SerialDataCapture
 
     public struct ThcCuttingData
     {
+        public UInt16 elapsedTime;
         public bool isVoltage;
         public UInt16 value;
         public bool torchOn;
@@ -64,23 +112,9 @@ namespace SerialDataCapture
 
 
         
-        /// <summary>
-        /// Clear any existing serial port names in the combo box, get
-        /// an updated list of the current ports and load it in the
-        /// combo box.
-        /// </summary>
-        private void refreshPorts()
-        {
-            String[] foundPorts;
-
-            cboPorts.Items.Clear();
-            foundPorts = SerialPort.GetPortNames();
-            cboPorts.Items.AddRange(foundPorts);
-        }
 
 
-
-
+#if NOPE
         /// <summary>
         /// Set voltage dislay to indicate that the display is not active.
         /// </summary>
@@ -89,14 +123,13 @@ namespace SerialDataCapture
             lblVoltage.Text = "---";
             lblSetPoint.Text = "---";
         }
-
+#endif
 
 
 
         private void frmTHCInterface_Load(object sender, EventArgs e)
         {
-            // Disable the serial port close button since the port is closed.
-            btnClosePort.Enabled = false;
+            frmConnect connectForm = new frmConnect();
 
             // Set the color off all the status bits to indicate not active
             pbArcGoodStatus.BackColor = Color.Black;
@@ -105,81 +138,63 @@ namespace SerialDataCapture
             pbTorchOnStatus.BackColor = Color.Black;
             pbVoltageControlStatus.BackColor = Color.Black;
             
-            // Set voltage to reflect no value
-            voltDisplayOff();
-
-            // Update the mode and state displays.
-            txtMode.Text = currentMode.ToString();
-            txtState.Text = currentState.ToString();
-            
-            
-            // Load the serial port list combo box.
-            refreshPorts();
-
-            // Disabled the control boxes that require a connection
-            // and idle THC to use.
-            DisableThcControls();
-
-            // Set the voltage display option to the default of filtered
-            cbVoltType.SelectedIndex = 0;
-
-            // Set up all controls for initial display.
-            DisconnectControlsFromTHC();
-
-            //ThcCuttingData tempData;
-            //tempData = thc.decodeVoltageOrCounts((char) 0x0f, (char) 0xff, (char) 0xff);
-            //loadVoltageData(tempData);
-
+            this.Show();
+            thc.setPort(connectForm.ConnectToTHC(this), 119200);
+            OpenTHCPort();
+            InitializeControls();
         }
 
-
-
-        private void DisableThcControls()
-        {
-            gbSetMode.Enabled = false;
-
-        }
-
-        private void DisconnectControlsFromTHC()
-        {
-            rbVoltDisplayOff.Checked = true;
-            btnCaptureOn.Enabled = false;
-            btnCaptureOff.Enabled = false;
-            if (captureToFile)
-                endLogCapture();
-            gbSignalStatus.Enabled = false;
-            gbSystemStatus.Enabled = false;
-            gbVoltage.Enabled = false;
-            
-            // Set all the flags to black
-            pbArcGoodStatus.BackColor = Color.Black;
-            pbThcDownStatus.BackColor = Color.Black;
-            pbThcUpStatus.BackColor = Color.Black;
-            pbTorchOnStatus.BackColor = Color.Black;
-            pbVoltageControlStatus.BackColor = Color.Black;
-
-            DisableThcControls();
-            voltDisplayOff();
-        }
-
-        /// <summary>
-        /// User hit "Refresh Ports" button, so update the list of available ports.
-        /// This is to address USB to Serial adapters added after the program was started.
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void btnRefreshPorts_Click(object sender, EventArgs e)
-        {
-            refreshPorts();
-        }
 
 
 
         private void btnExit_Click(object sender, EventArgs e)
         {
-            thc.closePort();
-            Application.Exit();
+        thc.stopThread();
+        // Close the serial port connection.
+        thc.closePort();
 
+        // End any in progress file captures
+        if (captureToFile)
+            endLogCapture();
+
+        Application.Exit();
+        }
+
+
+
+        public void setMode(THC_MODE newMode)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new MethodInvoker(() => { setMode(newMode); }));
+                return;
+            }
+
+            switch (newMode)
+            {
+                case THC_MODE.THC_MODE_BYPASS:
+                    rbBypass.Checked = true;
+                    break;
+
+                case THC_MODE.THC_MODE_CRUISE:
+                    rbCruise.Checked = true;
+                    break;
+
+                case THC_MODE.THC_MODE_DISABLED:
+                    rbDisabled.Checked = true;
+                    break;
+
+                case THC_MODE.THC_MODE_OPERATING:
+                    rbOperating.Checked = true;
+                    break;
+
+                case THC_MODE.THC_MODE_INACTIVE:
+                    rbBypass.Checked = false;
+                    rbCruise.Checked = false;
+                    rbDisabled.Checked = false;
+                    rbOperating.Checked = false;
+                    break;
+            }
         }
 
 
@@ -223,7 +238,48 @@ namespace SerialDataCapture
         }
 
 
- 
+
+        public void DisplaySetPoint(UInt16 value)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new MethodInvoker(() => { DisplaySetPoint(value); }));
+                return;
+            }
+
+            lblSetPoint.Text = value.ToString();
+        }
+
+
+
+        public void DisplayCurrent(UInt16 value)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new MethodInvoker(() => { DisplayCurrent(value); }));
+                return;
+            }
+
+            lblVoltage.Text = value.ToString();
+        }
+
+
+        public void SetUnits(THC_UNIT value)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new MethodInvoker(() => { SetUnits(value); }));
+                return;
+            }
+
+            if (value == THC_UNIT.THC_UNIT_COUNT)
+                rbCounts.Checked = true;
+            else
+                rbVolts.Checked = true;
+        }
+
+
+
         private void btnCaptureOn_Click(object sender, EventArgs e)
         {
             OpenFileDialog dlgOpen;
@@ -246,8 +302,8 @@ namespace SerialDataCapture
             captureFileName = dlgOpen.FileName;
 
             thc.startLogCapture(dlgOpen.FileName);
-            btnCaptureOn.Enabled = false;
-            btnCaptureOff.Enabled = true;
+            //btnCaptureOn.Enabled = false;
+            //btnCaptureOff.Enabled = true;
             captureToFile = true;
         }
 
@@ -260,77 +316,123 @@ namespace SerialDataCapture
         {
             thc.stopLogCapture();
             captureToFile = false;
-            btnCaptureOff.Enabled = false;
-            btnCaptureOn.Enabled = true;
+            //btnCaptureOff.Enabled = false;
+            //btnCaptureOn.Enabled = true;
         }
 
-        private void rbVoltDisplayOff_CheckedChanged(object sender, EventArgs e)
-        {
-            if (rbVoltDisplayOff.Checked)
-            {
-                btnCaptureOn.Enabled = false;
-                btnCaptureOff.Enabled = false;
-            }
-            else
-                btnCaptureOn.Enabled = true;
-        }
 
-        private void rbVoltDisplayOn_CheckedChanged(object sender, EventArgs e)
+        private void OpenTHCPort()
         {
-            btnCaptureOn.Enabled = true;
-        }
-
-        private void btnOpenPort_Click(object sender, EventArgs e)
-        {
+            
             // Open the port.
-            thc.setPort(cboPorts.SelectedItem.ToString(), 38400);
+            //thc.setPort(cboPorts.SelectedItem.ToString(), 119200);
             thc.openPort();
             thc.startThread();
-            // Update serial connection controls
-            btnOpenPort.Enabled = false;
-            btnClosePort.Enabled = true;
-            btnRefreshPorts.Enabled = false;
-            cboPorts.Enabled = false;
 
-            // Enable all the controls.
-            EnableControls();
-
+            thc.ThcGetMode();
+            thc.ThcGetSetPoint();
+            thc.ThcGetUnit();
+            thc.ThcGetCurrent();
+            thc.ThcGetCaptureState();
             // Start the processing loop.
-
         }
 
-        private void EnableControls()
+        private void InitializeControls()
         {
-            gbSystemStatus.Enabled = true;
+            gbSetMode.Enabled = true;
             gbVoltage.Enabled = true;
-            rbVoltDisplayOff.Checked = true;
+            rbCaptureOff.Checked = true;
             gbSignalStatus.Enabled = true;
-            btnCaptureOn.Enabled = true;
+            btnEndCapture.Enabled = false;
         }
 
-        private void btnClosePort_Click(object sender, EventArgs e)
+
+        private void btnStepMode_Click(object sender, EventArgs e)
         {
-            thc.stopThread();
-            // Close the serial port connection.
-            thc.closePort();
+            thc.ThcStepMode();
+        }
 
-            // End any in progress file captures
-            if (captureToFile)
-                endLogCapture();
+        private void btnUnitStep_Click(object sender, EventArgs e)
+        {
+            thc.ThcStepUnit();
+        }
 
-            DisconnectControlsFromTHC();
+        private void btnTorchOn_Click(object sender, EventArgs e)
+        {
+            thc.ThcTestTorchOn();
+        }
 
-            btnClosePort.Enabled = false;
-            btnOpenPort.Enabled = true;
-            btnRefreshPorts.Enabled = true;
+        private void btnTorchOff_Click(object sender, EventArgs e)
+        {
+            thc.ThcTestTorchOff();
+        }
+
+        private void btnVoltUp_Click(object sender, EventArgs e)
+        {
+            thc.ThcSetPointUp();   
+        }
+
+        private void btnVoltDown_Click(object sender, EventArgs e)
+        {
+            thc.ThcSetPointDown();   
         }
 
 
+        private void btnTest_Click(object sender, EventArgs e)
+        {
+            frmTestSignals signalsForm = new frmTestSignals();
 
+            signalsForm.SetHandler(ref thc);
+            signalsForm.ShowDialog();
+        }
 
+        private void btnStartCapture_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog dlgOpen;
 
+            // Have the user pick the file to upload.
+            dlgOpen = new OpenFileDialog();
+            dlgOpen.AddExtension = true;
+            dlgOpen.DefaultExt = ".log";
+            dlgOpen.InitialDirectory = "C:\\TorchVoltage\\";
+            dlgOpen.Title = "Log File for Voltage Capture";
+            dlgOpen.CheckFileExists = false;
 
+            // If no file is specified, just exit.
+            if (dlgOpen.ShowDialog() != DialogResult.OK)
+                return;
 
+            // Set the global capture name.
+            captureFileName = dlgOpen.FileName;
+
+            thc.startLogCapture(dlgOpen.FileName);
+            btnEndCapture.Enabled = true;
+            btnStartCapture.Enabled = false;
+            captureToFile = true;
+            thc.ThcCaptureStart();
+        }
+
+        private void btnEndCapture_Click(object sender, EventArgs e)
+        {
+            endLogCapture();
+            btnEndCapture.Enabled = false;
+            btnStartCapture.Enabled = true;
+            thc.ThcCaptureStop();
+        }
+
+        public void SetCaptureState(bool on)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new MethodInvoker(() => { SetCaptureState(on); }));
+                return;
+            }
+
+            if (on)
+                rbCaptureOn.Checked = true;
+            else
+                rbCaptureOff.Checked = true;
+        }
 
 
 
