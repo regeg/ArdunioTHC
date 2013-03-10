@@ -35,7 +35,7 @@ void TorchUp(THCInterface *display)
 	// Turn on TorchUp
 	digitalWrite(OUT_D_TORCH_UP, OUT_D_TORCH_UP_ACTIVE);
 	// Make sure TorchDown is off
-	digitalWrite(OUT_D_TORCH_DOWN, !OUT_D_TORCH_DOWN_ACTIVE);
+	digitalWrite(OUT_D_TORCH_DOWN, OUT_D_TORCH_DOWN_NOT_ACTIVE);
 	// Set the flags for torch status.
 	currentStateData.torchDown = false;
 	currentStateData.torchUp = true;
@@ -46,7 +46,7 @@ void TorchUp(THCInterface *display)
 void TorchDown(THCInterface *display)
 	{
 	// Make sure TorchUp is off
-	digitalWrite(OUT_D_TORCH_UP, !OUT_D_TORCH_UP_ACTIVE);
+	digitalWrite(OUT_D_TORCH_UP, OUT_D_TORCH_UP_NOT_ACTIVE);
 	// Turn on TorchDown
 	digitalWrite(OUT_D_TORCH_DOWN, OUT_D_TORCH_DOWN_ACTIVE);
 	// Set the flags for torch status.
@@ -84,7 +84,7 @@ void TorchGood(THCInterface *display)
 	// Make sure TorchUp is off
 	digitalWrite(OUT_D_TORCH_UP, !OUT_D_TORCH_UP_ACTIVE);
 	// Make sure TorchDown is off
-	digitalWrite(OUT_D_TORCH_DOWN, !OUT_D_TORCH_DOWN_ACTIVE);
+	digitalWrite(OUT_D_TORCH_DOWN, OUT_D_TORCH_DOWN_NOT_ACTIVE);
 	// Set the flags for torch status.
 	currentStateData.torchDown = false;
 	currentStateData.torchUp = false;
@@ -130,7 +130,7 @@ Command_e StateCuttingHandler(THCInterface *display)
 	if (!currentStateData.torchOnState)
 		{
 		// Turn off the relay so that the torch on signal to the plasma goes off.
-		digitalWrite(OUT_D_TORCH_RELAY, LOW);
+		digitalWrite(OUT_D_TORCH_RELAY, OUT_D_TORCH_RELAY_NOT_ACTIVE);
 		//Serial1.print(currentStateData.cutStartTime.elapsedMilliSeconds());
 		//Serial1.println(": torch off");
 		// Must ensure torch up/down off if torch off..

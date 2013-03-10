@@ -82,6 +82,7 @@ namespace SerialDataCapture
         public UInt16 elapsedTime;
         public bool isVoltage;
         public UInt16 value;
+        public UInt16 unfiltered;
         public bool torchOn;
         public bool arcGood;
         public bool voltControlOn;

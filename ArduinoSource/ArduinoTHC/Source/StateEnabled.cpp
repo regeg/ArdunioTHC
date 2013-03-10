@@ -44,7 +44,7 @@ Command_e StateEnabledHandler(THCInterface *display)
 		//Serial1.println(": Torch On");
 		// We were idle and the torch was turned on.
 		// Trip the relay to turn the plasma torch on
-		digitalWrite(OUT_D_TORCH_RELAY, HIGH);
+		digitalWrite(OUT_D_TORCH_RELAY, OUT_D_TORCH_RELAY_ACTIVE);
 		// Update the pilot arc count since we're starting the torch
 		// and update the flag to denote usage data is dirty.
 		usageData.pilotArcCount++;

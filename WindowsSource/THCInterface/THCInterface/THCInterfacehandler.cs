@@ -116,7 +116,7 @@ namespace SerialDataCapture
         }
 #endif
 
-        public ThcCuttingData decodeVoltageOrCounts(byte byte1, byte byte2, byte byte3, byte byte4)
+        public ThcCuttingData decodeVoltageOrCounts(byte byte1, byte byte2, byte byte3, byte byte4, byte byte5)
         {
             ThcCuttingData temp;
 
@@ -140,6 +140,8 @@ namespace SerialDataCapture
                 temp.value = (UInt16)byte4;
                 temp.value += (UInt16)((0x03 & ((UInt16)byte3)) << 8);
             }
+            temp.unfiltered = (UInt16) byte5;
+
             return temp;
         }
 
@@ -219,7 +221,7 @@ namespace SerialDataCapture
 
         private void ProcessSerialStream()
         {
-            byte byte1, byte2, byte3, byte4;
+            byte byte1, byte2, byte3, byte4, byte5;
             UInt16 value;
             ThcCuttingData cutData;
 
@@ -268,9 +270,10 @@ namespace SerialDataCapture
                     byte2 = readByte();
                     byte3 = readByte();
                     byte4 = readByte();
+                    byte5 = readByte();
 
                 // We now have all four bytes to process.
-                    cutData = decodeVoltageOrCounts(byte1, byte2, byte3, byte4);
+                    cutData = decodeVoltageOrCounts(byte1, byte2, byte3, byte4, byte5);
 
                     parentForm.loadVoltageData(cutData);
                     if (captureToFile)
@@ -323,7 +326,9 @@ namespace SerialDataCapture
             else
                 outputStream.Write("0, ");
 
-            outputStream.WriteLine(value.value.ToString());
+            outputStream.Write(value.value.ToString());
+
+            outputStream.WriteLine(", " +value.unfiltered.ToString());
         }
 
 

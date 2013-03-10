@@ -126,4 +126,5 @@
 		<project id="ArduinoTHC.null.1639169875" name="ArduinoTHC"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
+	<storageModule moduleId="refreshScope"/>
 </cproject>

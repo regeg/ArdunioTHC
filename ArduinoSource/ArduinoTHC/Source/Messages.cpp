@@ -55,7 +55,7 @@ void SendMode()
 
 void sendCutVoltageMessage()
 	{
-	uint8_t byte[5];
+	uint8_t byte[6];
 	uint16_t millisecondsElapsed;
 
 	byte[0] = PC_RESP_CUT_PACKET;
@@ -83,7 +83,8 @@ void sendCutVoltageMessage()
 
 	byte[4] = (uint8_t) (currentStateData.currentVoltage & 0xff);
 
-	Serial1.write((const uint8_t*) byte, 5);
+	byte[5] = (uint8_t) (analogRead(14) - 255);
+	Serial1.write((const uint8_t*) byte, 6);
 	}
 
 void SendCutStartPacket()

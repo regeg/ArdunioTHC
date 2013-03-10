@@ -442,6 +442,8 @@ void THCInterface::Display_Operating_ArcError()
 
 void THCInterface::Display_TargetVoltage(unsigned int voltage)
 	{
+	uint16_t temp;
+
 	lcd->setCursor(8, 0);
 	lcd->print("   ");
 	lcd->setCursor(8, 0);
@@ -450,10 +452,14 @@ void THCInterface::Display_TargetVoltage(unsigned int voltage)
 		lcd->print("FFF");
 	else
 		{
-		if (voltage < 100)
+		if (currentStateData.currentUnit == THC_UNIT_VOLTS)
+			temp = voltage / 7;
+		else
+			temp = voltage;
+		if (temp < 100)
 			lcd->setCursor(9, 0);
-		lcd->print(voltage);
-		tgtVolt = voltage;
+		lcd->print(temp);
+		tgtVolt = temp;
 		}
 	}
 
@@ -472,6 +478,7 @@ void THCInterface::ForceDisplay_CurrentVoltage(unsigned int voltage)
 
 void THCInterface::Display_CurrentVoltage(unsigned int voltage)
 	{
+	uint16_t temp;
 
 	if (voltage == curVolt)
 		return;
@@ -488,6 +495,9 @@ void THCInterface::Display_CurrentVoltage(unsigned int voltage)
 		lcd->print("FFF");
 		return;
 		}
+
+	if (currentStateData.currentUnit == THC_UNIT_VOLTS)
+		voltage /= 7;
 
 	// Determine how many leading zeros to print.
 	if (voltage < 10)

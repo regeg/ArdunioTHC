@@ -275,14 +275,17 @@ void loop()
 		// Read and filter the torch voltage.
 		readVoltage();
 
-		// Only update the display about 5 times a second (assuming a 1 ms loop time).
-		if (++delayDisplayUpdate > 200)
+		// Only update the display about 10 times a second (assuming a 1 ms loop time).
+		if (++delayDisplayUpdate > 100)
 			{
 			// Use the current value for the display.
+			/*
 			if (currentStateData.currentUnit == THC_UNIT_VOLTS)
 				display.Display_CurrentVoltage(currentStateData.currentVoltage/7);
 			else
 				display.Display_CurrentVoltage(currentStateData.currentVoltage);
+				*/
+			sendCutVoltageMessage();
 
 			delayDisplayUpdate = 0;
 			SendVoltage(PC_RESP_CURRENT);
@@ -334,6 +337,8 @@ void loop()
 				SendUnits();
 				SendVoltage(PC_RESP_SETPOINT);
 				SendVoltage(PC_RESP_CURRENT);
+				display.ForceDisplay_CurrentVoltage(currentStateData.currentVoltage);
+				display.Display_TargetVoltage(currentStateData.voltSetPoint);
 				break;
 
 			case PC_CMD_GET_UNIT:
@@ -664,15 +669,11 @@ void processCommand(Command_e newCmd)
 void TestTorchOn(bool value)
 {
 	if (value)
-		{
 		// Turn on torch for test
 		digitalWrite(OUT_D_TORCH_RELAY, OUT_D_TORCH_RELAY_ACTIVE);
-		}
 	else
-	{
 		// Turn off torch for test
 		digitalWrite(OUT_D_TORCH_RELAY, OUT_D_TORCH_RELAY_NOT_ACTIVE);
-		}
 
 }
 
