@@ -1,3 +1,6 @@
 .metadata/
+bin/
+Release
+obj/
 *.d
 *.o
