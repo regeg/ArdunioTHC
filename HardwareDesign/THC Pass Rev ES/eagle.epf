@@ -1,0 +1,27 @@
+[Eagle]
+Version="06 04 00"
+Platform="Windows"
+Serial="7104CBA4E5-LSR-WLM-1SS"
+Globals="Globals"
+Desktop="Desktop"
+
+[Globals]
+AutoSaveProject=1
+UsedLibrary="C:/Program Files (x86)/EAGLE-6.4.0/lbr/7805Regulator-RMG.lbr"
+UsedLibrary="C:/Program Files (x86)/EAGLE-6.4.0/lbr/CP2102 TTL to USB.lbr"
+UsedLibrary="C:/Program Files (x86)/EAGLE-6.4.0/lbr/DB-9Male-Rangle-RMG.lbr"
+UsedLibrary="C:/Program Files (x86)/EAGLE-6.4.0/lbr/TestPoint.lbr"
+UsedLibrary="C:/Program Files (x86)/EAGLE-6.4.0/lbr/con-subd.lbr"
+UsedLibrary="C:/Program Files (x86)/EAGLE-6.4.0/lbr/pinhead.lbr"
+UsedLibrary="C:/Program Files (x86)/EAGLE-6.3.0/lbr/adafruit.lbr"
+UsedLibrary="C:/Program Files (x86)/EAGLE-6.3.0/lbr/linear-technology.lbr"
+
+[Win_1]
+Type="Control Panel"
+Loc="656 475 1255 874"
+State=2
+Number=0
+
+[Desktop]
+Screen="3360 1050"
+Window="Win_1"

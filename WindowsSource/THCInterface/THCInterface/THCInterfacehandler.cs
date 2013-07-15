@@ -7,12 +7,22 @@ using System.IO.Ports;
 using System.Threading;
 using System.Windows.Forms;
 using System.IO;
+using System.Diagnostics;
 
 
 namespace SerialDataCapture
 {
+
     public class THCInterfaceHandler
     {
+        const byte COUNT_MASK = 0x80;
+        const byte TORCH_ON_MASK = 0x40;
+        const byte ARC_GOOD_MASK = 0x20;
+        const byte VOLT_CTL_ON_MASK = 0x10;
+        const byte TORCH_UP_MASK = 0x08;
+        const byte TORCH_DOWN_MASK = 0x04;
+        const byte MSB_COUNTS_MASK = 0x03;
+
         SerialPort thcPort;
         string serialPortName;
         bool portOpen;
@@ -20,6 +30,7 @@ namespace SerialDataCapture
         bool captureToFile = false;
         frmTHCInterface parentForm;
         Thread myThread;
+        UInt16 checksumErrorCount = 0;
 
         public THCInterfaceHandler(frmTHCInterface parent)
         {
@@ -115,19 +126,84 @@ namespace SerialDataCapture
             }
         }
 #endif
-
-        public ThcCuttingData decodeVoltageOrCounts(byte byte1, byte byte2, byte byte3, byte byte4, byte byte5)
+        //
+        // byte1, byte2 - time in milliseconds
+        // byte3, byte4 - set point in counts
+        // byte5 - flags, upper nibble of current voltage (if in counts)
+        // byte6 - lower byte of voltage (counts or volts)
+        // byte 7 - checksum
+        public ThcCuttingData decodeVoltageOrCounts(byte byte1, byte byte2, byte byte3, byte byte4, byte byte5,
+                                                    byte byte6, byte byte7)
         {
             ThcCuttingData temp;
+            byte checksum;
+            UInt16 temp2;
 
-            temp.checksumValid = false;
+            // See if checksum is valid.
+            checksum = (byte)(byte1 + byte2 + byte3 + byte4 + byte5 + byte6);
+            if (checksum == byte7)
+                temp.checksumValid = true;
+            else
+                temp.checksumValid = false;
 
-            temp.elapsedTime = (UInt16) (((UInt16) byte1) << 8);
+            // Decode Timestamp
+            temp.elapsedTime = (UInt16)(((UInt16)byte1) << 8);
             temp.elapsedTime |= (UInt16) byte2;
+
+            // Decode voltage setpoint
+            Debug.WriteLine("Byte 3: " + byte3.ToString() + " Byte 4: " + byte4.ToString());
+
+            temp.setPoint = (UInt16)byte4;
+            temp.setPoint |= (UInt16)(((UInt16)(byte3 & MSB_COUNTS_MASK)) << 8);
+//            Debug.WriteLine("Byte 3: " + byte3.ToString() + " Byte 4: " + byte4.ToString() + " Temp: " + temp.setPoint.ToString());
+
+            // Get the mode out of the setpoint value.
+            temp.current_mode = (THC_MODE) (byte3 >> 3);
+
+            // Bit set to 1 if A/D count
+            temp.isVoltage = ((byte5 & COUNT_MASK) != 0) ? false : true;
+            temp.torchOn = ((byte5 & TORCH_ON_MASK) != 0) ? true : false;
+            temp.arcGood = ((byte5 & ARC_GOOD_MASK) != 0) ? true : false;
+            temp.voltControlOn = ((byte5 & VOLT_CTL_ON_MASK) != 0) ? true : false;
+            temp.thcUp = ((byte5 & TORCH_UP_MASK) != 0) ? true : false;
+            temp.thcDown = ((byte5 & TORCH_DOWN_MASK) != 0) ? true : false;
+
+            temp.value = (UInt16)byte6;
+            temp.value |= (UInt16)(((UInt16)(byte5 & MSB_COUNTS_MASK)) << 8);
+
+            return temp;
+        }
+
+
+        //
+        // byte1, byte2 - time in milliseconds
+        // byte3, byte4 - set point in counts
+        // byte5 - flags, upper nibble of current voltage (if in counts)
+        // byte6 - lower byte of voltage (counts or volts)
+        // byte 7 - checksum
+        public ThcCuttingData decodeFastVoltageOrCounts(byte byte1, byte byte2, byte byte3, byte byte4, byte byte5)
+        {
+            ThcCuttingData temp;
+            byte checksum;
+
+            temp.current_mode = THC_MODE.THC_MODE_INACTIVE;
+
+            checksum = (byte)(byte1 + byte2 + byte3 + byte4 + byte5);
+
+            if (checksum == byte5)
+                temp.checksumValid = true;
+            else
+                temp.checksumValid = false;
+
+            temp.elapsedTime = (UInt16)(((UInt16)byte1) << 8);
+            temp.elapsedTime |= (UInt16)byte2;
 
             // Bit set to 1 if A/D count
             temp.isVoltage = ((byte3 & 0x80) != 0) ? false : true;
             temp.torchOn = ((byte3 & 0x40) != 0) ? true : false;
+            if (temp.torchOn)
+                temp.torchOn = true;
+
             temp.arcGood = ((byte3 & 0x20) != 0) ? true : false;
             temp.voltControlOn = ((byte3 & 0x10) != 0) ? true : false;
             temp.thcUp = ((byte3 & 0x08) != 0) ? true : false;
@@ -138,13 +214,14 @@ namespace SerialDataCapture
             else
             {
                 temp.value = (UInt16)byte4;
-                temp.value += (UInt16)((0x03 & ((UInt16)byte3)) << 8);
+                temp.value += (UInt16) ( ((UInt16) (COUNT_MASK & byte3)) << 8);
             }
-            temp.unfiltered = (UInt16) byte5;
+
+            // If set point isn't set, won't compile.
+            temp.setPoint = 0;
 
             return temp;
         }
-
 
 #if NOPE
         private void ProcessCutStream()
@@ -221,11 +298,18 @@ namespace SerialDataCapture
 
         private void ProcessSerialStream()
         {
-            byte byte1, byte2, byte3, byte4, byte5;
+            byte byte1, byte2, byte3, byte4, byte5, byte6, byte7, temp, checksum;
             UInt16 value;
             ThcCuttingData cutData;
 
-            // Read a byte
+            // Read the marker/synchronization byte
+            byte1 = readByte();
+
+            // Synchronize the serial data stream.
+            while (byte1 != 0xff)
+                byte1 = readByte();
+
+            // Read the command/header byte
             byte1 = readByte();
 
             // Decode the header byte:
@@ -236,14 +320,46 @@ namespace SerialDataCapture
                     break;
 
                 case (byte)THC_RESPONSE.THC_RESP_MODE:
-                    byte1 = readByte();
-                    parentForm.setMode((THC_MODE)byte1);
+                    byte2 = readByte();
+                    byte3 = readByte();
+                    checksum = (byte) (byte1 + byte2);
+                    if (checksum != byte3)
+                    {
+                        checksumErrorCount++;
+                        parentForm.setChecksumError(checksumErrorCount);
+                        break;
+                    }
+
+                    // If we're in Operating mode, the upper nibble has the state.
+                    if (((THC_MODE)(byte2 & 0x0f)) == THC_MODE.THC_MODE_OPERATING)
+                    {
+                        parentForm.setMode((THC_MODE) (byte2 & 0x0f));
+                        if ((byte2 & 0xf0) != 0)
+                            parentForm.setState(THC_STATE.THC_STATE_CUTTING);
+                        else
+                            parentForm.setState(THC_STATE.THC_STATE_ENABLED);
+                    }
+                    else
+                    {
+                        parentForm.setMode((THC_MODE)byte2);
+                    }
                     break;
 
                 case (byte)THC_RESPONSE.THC_RESP_SETPOINT:
-                    value = (UInt16)(((UInt16)readByte()) << 8);
-                    value |= (UInt16)((UInt16)readByte());
-                    parentForm.DisplaySetPoint(value);
+                    byte1 = readByte();
+                    value = (UInt16)(((UInt16) byte1) << 8);
+                    byte2 = readByte();
+                    value |= ((UInt16)byte2);
+                    byte3 = readByte();
+                    checksum = (byte) (byte1 + byte2);
+                    // See if the message was corrupted
+                    if (checksum == byte3)
+                        parentForm.DisplaySetPoint(value);
+                    else
+                    {
+                        checksumErrorCount++;
+                        parentForm.setChecksumError(checksumErrorCount);
+                    }
                     break;
 
                 case (byte)THC_RESPONSE.THC_RESP_STATUS:
@@ -255,14 +371,48 @@ namespace SerialDataCapture
                     break;
 
                 case (byte)THC_RESPONSE.THC_RESP_CURRENT:
-                    value = (UInt16)(((UInt16)readByte()) << 8);
-                    value |= (UInt16)((UInt16)readByte());
-                    parentForm.DisplayCurrent(value);
+                    byte1 = readByte();
+                    value = (UInt16)(((UInt16) byte1) << 8);
+                    byte2 = readByte();
+                    value |= (UInt16)((UInt16) byte2);
+                    byte3 = readByte();
+                    checksum = (byte) (byte1 + byte2);
+                    // Check the checksum.
+                    if (byte3 == checksum)
+                    {
+                        parentForm.DisplayCurrent(value);
+                    }
+                    else
+                    {
+                        checksumErrorCount++;
+                        parentForm.setChecksumError(checksumErrorCount);
+                    }
                     break;
 
                 case (byte)THC_RESPONSE.THC_RESP_START_CUT:
                     // Handle the start of cut.
                     //ProcessCutStream();
+                    break;
+
+                case (byte) THC_RESPONSE.THC_RESP_FAST_VOLT:
+                    byte1 = readByte();
+                    byte2 = readByte();
+                    byte3 = readByte();
+                    byte4 = readByte();
+                    byte5 = readByte();
+                    cutData = decodeFastVoltageOrCounts(byte1, byte2, byte3, byte4, byte5);
+
+                    if (cutData.checksumValid)
+                    {
+                        parentForm.loadVoltageData(cutData);
+                        if (captureToFile)
+                            logVoltageData(cutData);
+                    }
+                    else
+                    {
+                        checksumErrorCount++;
+                        parentForm.setChecksumError(checksumErrorCount);
+                    }
                     break;
 
                 case (byte) THC_RESPONSE.THC_RESP_CUT_PACKET:
@@ -271,13 +421,25 @@ namespace SerialDataCapture
                     byte3 = readByte();
                     byte4 = readByte();
                     byte5 = readByte();
+                    byte6 = readByte();
+                    byte7 = readByte();
 
-                // We now have all four bytes to process.
-                    cutData = decodeVoltageOrCounts(byte1, byte2, byte3, byte4, byte5);
+                    // We now have all seven bytes to process.
+                    cutData = decodeVoltageOrCounts(byte1, byte2, byte3, byte4, byte5, byte6, byte7);
 
-                    parentForm.loadVoltageData(cutData);
-                    if (captureToFile)
-                        logVoltageData(cutData);
+                    if (cutData.checksumValid)
+                    {
+                        parentForm.loadVoltageData(cutData);
+                        parentForm.setMode(cutData.current_mode);
+                            
+                        if (captureToFile)
+                            logVoltageData(cutData);
+                    }
+                    else
+                    {
+                        checksumErrorCount++;
+                        parentForm.setChecksumError(checksumErrorCount);
+                    }
                     break;
 
                 case (byte)THC_RESPONSE.THC_RESP_CAPTURE_OFF:
@@ -299,36 +461,50 @@ namespace SerialDataCapture
         public void logVoltageData(ThcCuttingData value)
         {
 
+            // Output time.
             outputStream.Write(value.elapsedTime.ToString() + ", ");
 
+            // Output if volts or counts
+            if (value.isVoltage)
+                outputStream.Write("V, ");
+            else
+                outputStream.Write("C, ");
+
+            // Torch On Status
             if (value.torchOn)
                 outputStream.Write("1, ");
             else
                 outputStream.Write("0, ");
 
+            // Arc Good Status
             if (value.arcGood)
                 outputStream.Write("1, ");
             else
                 outputStream.Write("0, ");
 
+            // THC Voltage Control
             if (value.voltControlOn)
                 outputStream.Write("1, ");
             else
                 outputStream.Write("0, ");
 
+            // THC Up control signal
             if (value.thcUp)
                 outputStream.Write("1, ");
             else
                 outputStream.Write("0, ");
 
+            // THC Down control signal
             if (value.thcDown)
                 outputStream.Write("1, ");
             else
                 outputStream.Write("0, ");
 
-            outputStream.Write(value.value.ToString());
+            // Current set point
+            outputStream.Write(value.setPoint.ToString() + ", ");
 
-            outputStream.WriteLine(", " +value.unfiltered.ToString());
+            // Current voltage
+            outputStream.WriteLine(value.value.ToString());
         }
 
 
@@ -336,7 +512,7 @@ namespace SerialDataCapture
         {
             // Open the new file and append to it if it already exists.
             outputStream = new StreamWriter(captureFileName, true);
-            outputStream.WriteLine("Elapsed Time, Torch, Arc, Control, Up, Down, Voltage");
+            outputStream.WriteLine("Elapsed Time, Volts/Count, Torch On, Arc Good, Voltage Control, THC Up, THC Down, Set Point, Current Voltage");
             captureToFile = true;
         }
 

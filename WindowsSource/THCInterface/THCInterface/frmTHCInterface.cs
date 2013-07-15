@@ -58,7 +58,8 @@ namespace SerialDataCapture
         THC_RESP_CAPTURE_OFF = 7,
         THC_RESP_CAPTURE_ON = 8,
         THC_RESP_CUT_PACKET = 9,
-        THC_RESP_END_CUT = 10
+        THC_RESP_END_CUT = 10,
+        THC_RESP_FAST_VOLT = 11
     };
 
     public enum THC_MODE
@@ -79,10 +80,11 @@ namespace SerialDataCapture
 
     public struct ThcCuttingData
     {
+        public THC_MODE current_mode;
         public UInt16 elapsedTime;
         public bool isVoltage;
         public UInt16 value;
-        public UInt16 unfiltered;
+        public UInt16 setPoint;
         public bool torchOn;
         public bool arcGood;
         public bool voltControlOn;
@@ -140,7 +142,7 @@ namespace SerialDataCapture
             pbVoltageControlStatus.BackColor = Color.Black;
             
             this.Show();
-            thc.setPort(connectForm.ConnectToTHC(this), 119200);
+            thc.setPort(connectForm.ConnectToTHC(this), 115200);
             OpenTHCPort();
             InitializeControls();
         }
@@ -150,15 +152,50 @@ namespace SerialDataCapture
 
         private void btnExit_Click(object sender, EventArgs e)
         {
-        thc.stopThread();
-        // Close the serial port connection.
-        thc.closePort();
+            // End any in progress file captures
+            if (captureToFile)
+                endLogCapture();
+            
+            thc.stopThread();
+            // Close the serial port connection.
+            thc.closePort();
 
-        // End any in progress file captures
-        if (captureToFile)
-            endLogCapture();
+            Application.Exit();
+        }
 
-        Application.Exit();
+
+        public void setChecksumError(UInt16 count)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new MethodInvoker(() => { setChecksumError(count); }));
+                return;
+            }
+
+            lblChecksumErrors.Text = count.ToString();
+        }
+
+
+
+        public void setState(THC_STATE newState)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new MethodInvoker(() => { setState(newState); }));
+                return;
+            }
+
+            if (newState == THC_STATE.THC_STATE_ENABLED)
+            {
+                rbEnabled.Checked = true;
+                rbCutting.Checked = false;
+            }
+            else
+            {
+                rbEnabled.Checked = false;
+                rbCutting.Checked = true;
+            }
+
         }
 
 
@@ -175,21 +212,26 @@ namespace SerialDataCapture
             {
                 case THC_MODE.THC_MODE_BYPASS:
                     rbBypass.Checked = true;
+                    gbState.Enabled = false;
                     break;
 
                 case THC_MODE.THC_MODE_CRUISE:
                     rbCruise.Checked = true;
+                    gbState.Enabled = false;
                     break;
 
                 case THC_MODE.THC_MODE_DISABLED:
                     rbDisabled.Checked = true;
+                    gbState.Enabled = false;
                     break;
 
                 case THC_MODE.THC_MODE_OPERATING:
                     rbOperating.Checked = true;
+                    gbState.Enabled = true;
                     break;
 
                 case THC_MODE.THC_MODE_INACTIVE:
+                    gbState.Enabled = false;
                     rbBypass.Checked = false;
                     rbCruise.Checked = false;
                     rbDisabled.Checked = false;
@@ -236,6 +278,10 @@ namespace SerialDataCapture
                 lblVoltage.Text = value.value.ToString();
             else
                 lblVoltage.Text = value.value.ToString();
+
+            lblSetPoint.Text = value.setPoint.ToString();
+
+            lblVoltage.Text = value.value.ToString();
         }
 
 
@@ -343,6 +389,7 @@ namespace SerialDataCapture
             gbSetMode.Enabled = true;
             gbVoltage.Enabled = true;
             rbCaptureOff.Checked = true;
+            rbCaptureOn.Checked = false;
             gbSignalStatus.Enabled = true;
             btnEndCapture.Enabled = false;
         }
@@ -434,15 +481,6 @@ namespace SerialDataCapture
             else
                 rbCaptureOff.Checked = true;
         }
-
-
-
-
-
-
-
-
-
 
 
     }

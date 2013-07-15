@@ -66,6 +66,11 @@
             this.btnEndCapture = new System.Windows.Forms.Button();
             this.btnStartCapture = new System.Windows.Forms.Button();
             this.btnTest = new System.Windows.Forms.Button();
+            this.label1 = new System.Windows.Forms.Label();
+            this.lblChecksumErrors = new System.Windows.Forms.Label();
+            this.gbState = new System.Windows.Forms.GroupBox();
+            this.rbEnabled = new System.Windows.Forms.RadioButton();
+            this.rbCutting = new System.Windows.Forms.RadioButton();
             this.gbSignalStatus.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pbThcDownStatus)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pbThcUpStatus)).BeginInit();
@@ -76,6 +81,7 @@
             this.gbUnits.SuspendLayout();
             this.gbSetMode.SuspendLayout();
             this.gbCapture.SuspendLayout();
+            this.gbState.SuspendLayout();
             this.SuspendLayout();
             // 
             // gbSignalStatus
@@ -241,7 +247,7 @@
             // btnVoltDown
             // 
             this.btnVoltDown.Font = new System.Drawing.Font("Wingdings", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(2)));
-            this.btnVoltDown.Location = new System.Drawing.Point(123, 37);
+            this.btnVoltDown.Location = new System.Drawing.Point(128, 37);
             this.btnVoltDown.Name = "btnVoltDown";
             this.btnVoltDown.Size = new System.Drawing.Size(20, 23);
             this.btnVoltDown.TabIndex = 14;
@@ -252,7 +258,7 @@
             // btnVoltUp
             // 
             this.btnVoltUp.Font = new System.Drawing.Font("Wingdings", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(2)));
-            this.btnVoltUp.Location = new System.Drawing.Point(123, 11);
+            this.btnVoltUp.Location = new System.Drawing.Point(128, 11);
             this.btnVoltUp.Name = "btnVoltUp";
             this.btnVoltUp.Size = new System.Drawing.Size(20, 24);
             this.btnVoltUp.TabIndex = 13;
@@ -342,7 +348,7 @@
             // 
             this.lblSetPointLabel.AutoSize = true;
             this.lblSetPointLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblSetPointLabel.Location = new System.Drawing.Point(15, 29);
+            this.lblSetPointLabel.Location = new System.Drawing.Point(8, 29);
             this.lblSetPointLabel.Name = "lblSetPointLabel";
             this.lblSetPointLabel.Size = new System.Drawing.Size(74, 16);
             this.lblSetPointLabel.TabIndex = 0;
@@ -386,6 +392,7 @@
             // 
             // gbSetMode
             // 
+            this.gbSetMode.Controls.Add(this.gbState);
             this.gbSetMode.Controls.Add(this.btnStepMode);
             this.gbSetMode.Controls.Add(this.rbOperating);
             this.gbSetMode.Controls.Add(this.rbCruise);
@@ -393,7 +400,7 @@
             this.gbSetMode.Controls.Add(this.rbDisabled);
             this.gbSetMode.Location = new System.Drawing.Point(421, 12);
             this.gbSetMode.Name = "gbSetMode";
-            this.gbSetMode.Size = new System.Drawing.Size(132, 151);
+            this.gbSetMode.Size = new System.Drawing.Size(132, 204);
             this.gbSetMode.TabIndex = 21;
             this.gbSetMode.TabStop = false;
             this.gbSetMode.Text = "Mode";
@@ -499,12 +506,67 @@
             this.btnTest.UseVisualStyleBackColor = true;
             this.btnTest.Click += new System.EventHandler(this.btnTest_Click);
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(13, 295);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(90, 13);
+            this.label1.TabIndex = 25;
+            this.label1.Text = "Checksum Errors:";
+            // 
+            // lblChecksumErrors
+            // 
+            this.lblChecksumErrors.AutoSize = true;
+            this.lblChecksumErrors.Location = new System.Drawing.Point(115, 294);
+            this.lblChecksumErrors.Name = "lblChecksumErrors";
+            this.lblChecksumErrors.Size = new System.Drawing.Size(13, 13);
+            this.lblChecksumErrors.TabIndex = 26;
+            this.lblChecksumErrors.Text = "0";
+            // 
+            // gbState
+            // 
+            this.gbState.Controls.Add(this.rbCutting);
+            this.gbState.Controls.Add(this.rbEnabled);
+            this.gbState.Location = new System.Drawing.Point(27, 139);
+            this.gbState.Name = "gbState";
+            this.gbState.Size = new System.Drawing.Size(95, 58);
+            this.gbState.TabIndex = 5;
+            this.gbState.TabStop = false;
+            this.gbState.Text = "State";
+            // 
+            // rbEnabled
+            // 
+            this.rbEnabled.AutoSize = true;
+            this.rbEnabled.Enabled = false;
+            this.rbEnabled.Location = new System.Drawing.Point(15, 15);
+            this.rbEnabled.Name = "rbEnabled";
+            this.rbEnabled.Size = new System.Drawing.Size(64, 17);
+            this.rbEnabled.TabIndex = 0;
+            this.rbEnabled.TabStop = true;
+            this.rbEnabled.Text = "Enabled";
+            this.rbEnabled.UseVisualStyleBackColor = true;
+            // 
+            // rbCutting
+            // 
+            this.rbCutting.AutoSize = true;
+            this.rbCutting.Enabled = false;
+            this.rbCutting.Location = new System.Drawing.Point(15, 35);
+            this.rbCutting.Name = "rbCutting";
+            this.rbCutting.Size = new System.Drawing.Size(58, 17);
+            this.rbCutting.TabIndex = 1;
+            this.rbCutting.TabStop = true;
+            this.rbCutting.Text = "Cutting";
+            this.rbCutting.UseVisualStyleBackColor = true;
+            // 
             // frmTHCInterface
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.GradientActiveCaption;
             this.ClientSize = new System.Drawing.Size(607, 408);
+            this.Controls.Add(this.lblChecksumErrors);
+            this.Controls.Add(this.label1);
             this.Controls.Add(this.btnTest);
             this.Controls.Add(this.gbCapture);
             this.Controls.Add(this.gbSetMode);
@@ -530,7 +592,10 @@
             this.gbSetMode.PerformLayout();
             this.gbCapture.ResumeLayout(false);
             this.gbCapture.PerformLayout();
+            this.gbState.ResumeLayout(false);
+            this.gbState.PerformLayout();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -574,6 +639,11 @@
         private System.Windows.Forms.Button btnTest;
         private System.Windows.Forms.Button btnEndCapture;
         private System.Windows.Forms.Button btnStartCapture;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label lblChecksumErrors;
+        private System.Windows.Forms.GroupBox gbState;
+        private System.Windows.Forms.RadioButton rbCutting;
+        private System.Windows.Forms.RadioButton rbEnabled;
     }
 }
 
