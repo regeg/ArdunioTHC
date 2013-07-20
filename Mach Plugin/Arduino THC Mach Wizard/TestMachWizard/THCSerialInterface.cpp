@@ -268,6 +268,10 @@ DWORD WINAPI SerialProcessing(LPVOID lpParam)
 
 		}  // While !HariKari
 
+		// Close the port and set the flag to show it is closed.
+		MG::thcSerial->Close();
+		MG::thcControl.portOpen = false;
+
 	} // try
 
 	catch (...)

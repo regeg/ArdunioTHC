@@ -29,6 +29,8 @@
 #include "THCSerialInterface.h"
 #include "ManagedGlobal.h"
 
+#include "ComError.h"
+
 #include <stdlib.h>
 
 //---------------------------------------------------------------------
@@ -111,12 +113,15 @@ char* piSetProName(LPCSTR name)
 	XMLNetProfile^	profile = gcnew XMLNetProfile(gcnew String(ProfileName), "ArduinoTHCMachWizardPlugin", true);
 
 	// Load the saved XML configuration data.
-	profile->Load();
-
-	// Read the saved config data for enabling the THC.
-	MG::THCControlEnabled = profile->ReadBool("EnableTHC");
-	// Set the Comm Port based on the saved data.  (XX if none, so port open will fail.
-	MG::thcControl.portName = gcnew String(profile->ReadString("ComPort", ""));
+	if (profile->Load())
+	{
+		// Read the saved config data for enabling the THC.
+		MG::THCControlEnabled = profile->ReadBool("EnableTHC");
+		// Set the Comm Port based on the saved data.  (XX if none, so port open will fail.
+		MG::thcControl.portName = gcnew String(profile->ReadString("ComPort", "COM1"));
+	}
+	else
+		MG::thcControl.portName = gcnew String("COM1");
 
 	// Set thread to non-existent.
 	MG::hndlSerialThread = 0;
@@ -172,7 +177,6 @@ void piPostInitControl()
 					i = machMenuCnt;
 				}
 			}
-
 			free(txt);
 		}
 
@@ -186,6 +190,11 @@ void piPostInitControl()
 	SetLED(LED_THC_STATUS, false);
 	// Try to launch the serial thread.
 	MG::hndlSerialThread = CreateThread(NULL, 0, SerialProcessing, NULL, 0, 0); 
+	// See if the config is set to turn on the THC control on boot
+	if (MG::THCControlEnabled)
+	{
+		Engine->THCOn = true;
+	}
 
 }
 #endif
@@ -236,33 +245,33 @@ void piStopPlug()
 	// We're stopping so save any options to the XML file.
 	//
 
+// <XML_WEIRDNESS>
+//			If you save values to the XML file when changed, but not here, they won't "stick".
+// </XML_WEIRDNESS>
+
 	// See if we can read the existing XML file.
 	if (profile->Load())
 	{
 		// Save the updated value to the XML file.
 		profile->WriteString("ComPort", MG::thcControl.portName);
-		
-		//
-		// Save the configuration options.
-		//
+		// Save the default THC state.
 		profile->WriteBool("EnableTHC", MG::THCControlEnabled);
-
 		// Save the XML file to disk.
 		profile->Save();
 	}
 
 	// Set the flag to kill the serial processing thread.
 	MG::thcControl.hariKari = true;
-
 	// If the thread is running, wait until it dies.
 	if (MG::hndlSerialThread != 0)
 	{
 		WaitForSingleObject(MG::hndlSerialThread, INFINITE); 
 	}
-
-
 }
 #endif
+
+
+
 
 //---------------------------------------------------------------------
 //
@@ -285,16 +294,6 @@ void piStopPlug()
 #endif
 void piUpdate()
 {
-#ifdef NOPE
-	if (MG::xyzDemoDialog)
-	{
-		XYZDemoDialog^	xyzDemoDialog = MG::xyzDemoDialog;
-
-		xyzDemoDialog->textBoxX->Text = GetDRO(800).ToString("F4");
-		xyzDemoDialog->textBoxY->Text = GetDRO(801).ToString("F4");
-		xyzDemoDialog->textBoxZ->Text = GetDRO(802).ToString("F4");
-	}
-#endif
 
 	if (MG::thcData.torchOn != MG::thcDataOld.torchOn)
 	{
@@ -431,20 +430,27 @@ void piNotify(int id)
 		pluginControlDialog->lblCurrentPort->Text = MG::thcSerial->PortName;
 		// Initialize the combo box with the current port selected, if it is in the list of ports present.
 		pluginControlDialog->cbComPort->SelectedIndex = pluginControlDialog->cbComPort->Items->IndexOf(MG::thcSerial->PortName);
+		// Initialize the configuration for enabling THC control on boot.
+		pluginControlDialog->chkTHCEnabled->Checked = MG::THCControlEnabled;
+		// Keep track of the selected com port so we can tell if it changed.
 		originalIndex = pluginControlDialog->cbComPort->SelectedIndex;
 
 		// Put the dialog box up.  If the user hit "okay", save the changes.
 		if (pluginControlDialog->ShowDialog() == DialogResult::OK)
 		{
-			// Get the selected Com Port name.
-			MG::thcControl.portName = pluginControlDialog->cbComPort->SelectedItem->ToString();
-			// Get the default state for THC enabled.
-			MG::THCControlEnabled = pluginControlDialog->chkTHCEnabled->Checked;
-
 			// See if the port changed.
 			if (originalIndex != pluginControlDialog->cbComPort->SelectedIndex)
+			{
+				// Set the flag so we know it was updated.			
 				portChanged = true;
 
+				// Get the selected Com Port name.
+				MG::thcControl.portName = pluginControlDialog->cbComPort->SelectedItem->ToString();
+			}
+
+			// Get the default state for THC enabled.
+			MG::THCControlEnabled = pluginControlDialog->chkTHCEnabled->Checked;
+			
 			// See if a Serial Restart was requested.
 			if ((pluginControlDialog->chkBoxRestartSerial->Checked) || portChanged)
 			{
@@ -461,30 +467,6 @@ void piNotify(int id)
 
 				// Reset the flag to kill the serial processing thread.
 				MG::thcControl.hariKari = false;
-
-				//
-				// If the port changed, set the new port.
-				//
-				if (portChanged)
-				{
-					//delete(MG::thcControl.portName);
-					// Set the Comm Port based on the saved data.
-					MG::thcControl.portName = gcnew String(pluginControlDialog->cbComPort->SelectedText);
-
-					XMLNetProfile^	profile = gcnew XMLNetProfile(gcnew String(ProfileName), "ArduinoTHCMachWizardPlugin", true);
-					// See if we can read the existing XML file.
-					if (profile->Load())
-					{
-						// Save the updated value to the XML file.
-						profile->WriteString("ComPort", pluginControlDialog->cbComPort->SelectedText);
-						
-						// Save the XML file to disk.
-						profile->Save();
-					}
-
-					// Set thread to non-existent.
-					MG::hndlSerialThread = 0;
-				}
 
 				//
 				// Now that the serial thread is stopped, restart it.

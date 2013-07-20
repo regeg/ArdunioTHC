@@ -34,27 +34,27 @@ Full CNC Interface - all control signals are available on a connector on the bac
 	- Full torch voltage
 	- Divided torch voltage
 
-This hardware design uses the full arc voltage.  I've observed about 2 volts of noise on the voltage, no matter what you use (full voltage or divided voltage).  By using the full voltage and dividing it myself, the noise is kept to a significantly lower percentage of the signal.
+This hardware design uses the full arc voltage.  I've observed about 2 volts of noise on the torch voltage signal, no matter what you use (full voltage or divided voltage).  By using the full voltage and dividing it myself, the noise is kept to a significantly lower percentage of the signal.
 
 I have not tested the THC with any other brand of plasma torch.  It should be a good starting point to make a THC to work with other torches that provide a CNC interface.
 
 Hardware
 --------
-The system uses an Arduino Mega with a SainSmart 1602 LCD Keypad Shield.
+There are two versions of the shield.  The first is a shield and will work with an Arduino Mega.  This has been the primary platform.  A newly released version uses the Arduino Micro Pro.
 
-I developed a custom shield with necessary THC functionality.  It provides:
+The hardware provides:
 	- isolated interface to CNC system
 	- interface to Power Plasma 50 CNC interface
-	- interface to 5 push buttons (mode, menu/select, cancel,up, down)
-	- (optional) isolated RS-232 (TTL levels) for interface to THC
+	- isolated RS-232 (TTL levels) for interface to THC
 
 --
 
 I will be updating all files as the project progresses.  There will be the following subdirectories:
 	- "ArduinoSource", using Eclipse plugin from www.baeyens.it/eclipse/
-	- "Documentation"
+	- "THC Manaul", a users guide to building and use the THC
 	- "HardwareDesign", Eagle schematic and PCB layout files
 	- "WindowsSource", C# .Net application used to capture cutting data
+	- "Mach Plugin", A Mach3 plugin to allow Mach to control the THC
 
 License
 -------
