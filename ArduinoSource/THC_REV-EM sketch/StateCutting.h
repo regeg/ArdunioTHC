@@ -15,14 +15,14 @@
 #ifndef STATECUTTING_HPP_
 #define STATECUTTING_HPP_
 
-
-#define VOLTAGE_ON_HYSTERESIS 4 // 7 counts = 1 volt
+// Was 4 but changed it because noise is +/- 2
+#define VOLTAGE_ON_HYSTERESIS 5 // 7 counts = 1 volt
 
 // Had a great capture at 3, but never got closer then 2, so trying 1
-#define VOLTAGE_OFF_HYSTERESIS 1 // 7 counts = 1 volt
+#define VOLTAGE_OFF_HYSTERESIS 2 // 7 counts = 1 volt
 
 
-#define TORCH_STABILIZE_TIME_MLLISECONDS 1200
+#define TORCH_STABILIZE_TIME_MLLISECONDS 0
 
 void StateCuttingHandler();
 

@@ -81,6 +81,7 @@ typedef struct
 		unsigned char tipMinutes;
 		unsigned char tipSeconds;
 		unsigned int voltSetPoint;
+                
 		THCState_e defaultState;
 		unsigned long initialWriteCount;
 		unsigned char flashBlock;
@@ -112,7 +113,9 @@ typedef struct
 		Timer kerfTimer;
 } StateData;
 
+#ifdef MICRO_THC
 extern HardwareSerial SERIAL;
+#endif
 
 extern volatile THCStatData usageData;
 extern StateData currentStateData;

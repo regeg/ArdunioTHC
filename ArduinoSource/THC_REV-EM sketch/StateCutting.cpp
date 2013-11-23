@@ -26,6 +26,10 @@
 
 #include "StateCutting.h"
 
+// 5 volts (35 counts) is the immediate threshold.
+#define KERF_ENCOUNTERED_THRESHOLD (currentStateData.voltSetPoint + (35))
+#define KERF_ENCOUNTERED_DELAYED_THRESHOLD (currentStateData.voltSetPoint + (VOLTAGE_ON_HYSTERESIS*2))
+#define KERF_CLEARED_THRESHOLD (currentStateData.voltSetPoint + (VOLTAGE_ON_HYSTERESIS*2))
 
 
 
@@ -172,20 +176,21 @@ void StateCuttingHandler()
 		{
 		// Handle the case where voltage control is off due to a kerf being crossed.
 		if (currentStateData.kerfEncountered)
-			{
-			if (currentStateData.kerfVoltage >= currentStateData.currentVoltage)
-				// The voltage has returned to a "pre-kerf" level, so resume control.
-				TorchKerfCrossed();
-			}
+                    {
+                     if (currentStateData.currentVoltage <= (currentStateData.voltSetPoint + (2 * VOLTAGE_ON_HYSTERESIS)) )
+                        // Turn voltage control back on
+                        // Set flag to "no kerf"
+                        TorchKerfCrossed();
+                    }
 
 		// This is the initial start of cut case, so see if the timer has expired.
 		else if (currentStateData.torchStabilizeTimer.elapsedMilliSeconds() > TORCH_STABILIZE_TIME_MLLISECONDS)
 			{
 			currentStateData.runVoltageControl = true;
 			}
-
-		// For code clarity, return now and start voltage control next pass (its only 1 ms), if needed.
-		return;
+                else
+        	   // Thre is no need to do voltage control at this time.
+        	   return;
 		}
 
 
@@ -193,11 +198,11 @@ void StateCuttingHandler()
 	// Run the voltage control.
 	//
 
-	// One one of the following is done, but the selection is in this order:
+	// One of the following is done:
+	//	1) See if the voltage is too low, and if so turn on Torch Up
 	//	1) if Torch is going Up, see if high enough and turn off if needed
 	//	2) a) if Torch is going Down, see if low enough and turn off if needed
 	//     b) see if we're crossing a kerf, and if so, turn off voltage control
-	//	3) See if the voltage is too low, and if so turn on Torch Up
 	//	4) See if the voltage is too high, and if so turn on Torch Down
 	//
 	// After torch height control is done, see if the user it trying to
@@ -209,38 +214,11 @@ void StateCuttingHandler()
 	if (currentStateData.torchUp)
 		{
 		// Check to see if the torch is high enough.
-		if (currentStateData.currentVoltage	>=
+		if (currentStateData.currentVoltage >=
 			(currentStateData.voltSetPoint - VOLTAGE_OFF_HYSTERESIS))
 			{
 			// Handle case of torch at height.
 			TorchGood();
-			}
-		}
-
-	//
-	// Handle the case where Torch Down is active
-	//
-	else if (currentStateData.torchDown)
-		{
-		// Check to see if the torch is low enough.
-		if (currentStateData.currentVoltage <=
-			(currentStateData.voltSetPoint + VOLTAGE_OFF_HYSTERESIS))
-			{
-			// Handle case of torch at height.
-			TorchGood();
-			}
-		else // Check to see if we're crossing a kerf
-			{
-			// We consider that we're crossing a kerf if either:
-			// a) voltage goes 2 above the voltage when torch up was detected, or
-			// b) after 7 ms. the voltage has not gone down.
-			if ((currentStateData.currentVoltage > (currentStateData.kerfVoltage+1)) ||
-				((currentStateData.kerfTimer.elapsedMilliSeconds()> 7) &&
-				 (currentStateData.currentVoltage >= (currentStateData.kerfVoltage))) )
-				{
-				// Assume we've encountered a kerf, call routine to set all flags.
-				TorchKerf();
-				}
 			}
 		}
 
@@ -253,22 +231,52 @@ void StateCuttingHandler()
 		TorchUp();
 
 	//
-	// See if the voltage is too high, and if so move the torch down.
+	// Handle the case where Torch Down is active
 	//
-	else if ( (currentStateData.currentVoltage >=
-			  (currentStateData.voltSetPoint + VOLTAGE_ON_HYSTERESIS)) &&
-			!currentStateData.kerfEncountered)
+	else if (currentStateData.torchDown)
 		{
-		// Update display that torch needs to go up
-		TorchDown();
-		// Set flags to signal torch down.
-		currentStateData.torchUp = false;
-		currentStateData.torchDown = true;
-		currentStateData.kerfVoltage = currentStateData.currentVoltage;
-		currentStateData.kerfTimer.startTimer();
+                // Track the highest voltage reached.
+                if (currentStateData.currentVoltage > currentStateData.kerfVoltage)
+                   currentStateData.kerfVoltage = currentStateData.currentVoltage;
+
+		// Check to see if the torch is low enough.
+		if (currentStateData.currentVoltage <=
+			(currentStateData.voltSetPoint + VOLTAGE_OFF_HYSTERESIS))
+			{
+			// Handle case of torch at height.
+			TorchGood();
+                        // If we were in a kerf, clear it.
+                        if (currentStateData.kerfEncountered)
+                           TorchKerfCrossed();
+			}
+                // Test for encountering a Kerf
+		else if (!currentStateData.kerfEncountered)
+                        {
+                             // Give it some time to see if voltage is still climbing, if so, we're on a kerf.
+                             // At 100 ipm with a 0.06 kerf width, you will be halfway across in 18 ms.
+                             if(currentStateData.kerfTimer.elapsedMilliSeconds() > 30)
+                             {
+                                // If voltage is still rising after 10 ms and it's at least 3 times the turn on hysterisis, we're on a kerf
+                                if ( (currentStateData.currentVoltage >= currentStateData.kerfVoltage) &&
+                                     (currentStateData.currentVoltage > (currentStateData.voltSetPoint + (3 * VOLTAGE_ON_HYSTERESIS))) )
+                                   // Kerf encountered.
+                                   TorchKerf();
+                             }
+                        }
 		}
+        // Test to see if the torch needs to go down.
+	else
+        {
+           // Check to see if the torch is to high.
+	   if (currentStateData.currentVoltage >=
+ 	      (currentStateData.voltSetPoint + VOLTAGE_ON_HYSTERESIS))
+	      {
+	      // Handle case of torch to high.
+	      TorchDown();
+              }
 	}
 
+}
 
 
 
