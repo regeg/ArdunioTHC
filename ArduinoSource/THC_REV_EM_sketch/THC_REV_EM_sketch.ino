@@ -40,9 +40,6 @@ StateData currentStateData;
 // Tip usage parameters.
 volatile THCStatData usageData;
 
-// Default object for the USB serial port.
-extern HardwareSerial SERIAL;
-
 // Flag value to determine when to send cutting voltages.
 bool captureOn = true;
 
@@ -431,6 +428,18 @@ void loop()
 				// Turn off torch down for test
 				digitalWrite(OUT_D_TORCH_DOWN, OUT_D_TORCH_DOWN_NOT_ACTIVE);
 				break;
+
+                        case PC_SET_COUNT_ON_HYSTERISIS:
+                               break;
+                               
+                        case PC_SET_COUNT_OFF_HYSTERISIS:
+                               break;
+                               
+                        case PC_SET_TORCH_STABILIZE_MILLISEC:
+                               break;
+                               
+                        // Consider adding messages to set kerf threasdhold values.
+                               
 
 			default:
 				break;
