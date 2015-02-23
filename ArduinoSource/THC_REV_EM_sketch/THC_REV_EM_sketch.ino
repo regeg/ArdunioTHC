@@ -296,7 +296,7 @@ void loop()
 				buff[1] = (uint8_t) SERIAL.read();
 				temp = (((uint16_t) buff[0]) << 8) | ((uint16_t) buff[1]);
 				if (currentStateData.currentUnit == THC_UNIT_VOLTS)
-					temp *= 7;
+					temp *= COUNTS_PER_VOLT;
 				currentStateData.voltSetPoint = temp;
 				SendVoltage(PC_RESP_SETPOINT);
 				break;
@@ -354,9 +354,9 @@ void loop()
 				SERIAL.read();
 				// Handle the up.
 				if ((currentStateData.currentUnit == THC_UNIT_VOLTS)
-						&& (currentStateData.voltSetPoint / 7 < 180))
+						&& (currentStateData.voltSetPoint / COUNTS_PER_VOLT < 180))
 				{
-					currentStateData.voltSetPoint += 7;
+					currentStateData.voltSetPoint += COUNTS_PER_VOLT;
 				}
 				else if ((currentStateData.currentUnit == THC_UNIT_COUNTS)
 						&& (currentStateData.voltSetPoint < 1020))
@@ -373,9 +373,9 @@ void loop()
 				SERIAL.read();
 				// Handle the down.
 				if ((currentStateData.currentUnit == THC_UNIT_VOLTS)
-						&& (currentStateData.voltSetPoint / 7 > 50))
+						&& (currentStateData.voltSetPoint / COUNTS_PER_VOLT > 50))
 				{
-					currentStateData.voltSetPoint -= 7;
+					currentStateData.voltSetPoint -= COUNTS_PER_VOLT;
 				}
 				else if ((currentStateData.currentUnit == THC_UNIT_COUNTS)
 						&& (currentStateData.voltSetPoint > 350))

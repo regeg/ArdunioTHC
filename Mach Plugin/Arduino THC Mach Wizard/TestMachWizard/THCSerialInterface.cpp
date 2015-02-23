@@ -8,6 +8,8 @@
 #include "THCSerialInterface.h"
 #include "ManagedGlobal.h"
 
+#include "ComError.h"
+
 #include <stdlib.h>
 
 //---------------------------------------------------------------------
@@ -270,6 +272,7 @@ DWORD WINAPI SerialProcessing(LPVOID lpParam)
 
 		// Close the port and set the flag to show it is closed.
 		MG::thcSerial->Close();
+		delete MG::thcSerial;
 		MG::thcControl.portOpen = false;
 
 	} // try
@@ -277,10 +280,14 @@ DWORD WINAPI SerialProcessing(LPVOID lpParam)
 	catch (...)
 	{
 		MG::thcControl.portOpen = false;
+		MG::thcControl.hariKari = false;
 		// Call the exit thread function to clean up the thread resources.
 		ExitThread(0);
 	}
 
+	// Set flag to denote thread has been killed.
+	MG::thcControl.portOpen = false;
+	MG::thcControl.hariKari = false;
 
 	// Call the exit thread function to clean up the thread resources.
 	ExitThread(0);

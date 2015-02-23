@@ -127,6 +127,7 @@ char* piSetProName(LPCSTR name)
 	MG::hndlSerialThread = 0;
 	// Set flag to allow serial thread to run.
 	MG::thcControl.hariKari = false;
+	MG::thcControl.portOpen = false;
 
 	// Return the name of the plug-in
 	return "ArduinoTHC-RegeG-v0.0.0.0";
@@ -450,28 +451,11 @@ void piNotify(int id)
 
 			// Get the default state for THC enabled.
 			MG::THCControlEnabled = pluginControlDialog->chkTHCEnabled->Checked;
-			
 			// See if a Serial Restart was requested.
-			if ((pluginControlDialog->chkBoxRestartSerial->Checked) || portChanged)
+			if (portChanged)
 			{
-				//
 				// Stop the serial thread.
-				//
-
-				// Set the flag to kill the serial processing thread.
 				MG::thcControl.hariKari = true;
-
-				// If the thread is running, wait until it dies.
-				if (MG::hndlSerialThread != 0)
-					WaitForSingleObject(MG::hndlSerialThread, INFINITE); 
-
-				// Reset the flag to kill the serial processing thread.
-				MG::thcControl.hariKari = false;
-
-				//
-				// Now that the serial thread is stopped, restart it.
-				//
-				MG::hndlSerialThread = CreateThread(NULL, 0, SerialProcessing, NULL, 0, 0); 
 			}
 		}
 	}
@@ -508,8 +492,6 @@ void piNotify(int id)
 		catch (...)
 		{
 			MG::thcControl.portOpen = false;
-			// Call the exit thread function to clean up the thread resources.
-			// ExitThread(0);
 		}
 	}
 

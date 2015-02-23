@@ -70,8 +70,17 @@ namespace ArduinoTHC {
 
 	private: System::Windows::Forms::GroupBox^  groupBox1;
 	public: System::Windows::Forms::CheckBox^  chkTHCEnabled;
-	private: System::Windows::Forms::Button^  btnRestartSerial;
-	public: System::Windows::Forms::CheckBox^  chkBoxRestartSerial;
+
+
+	private: System::Windows::Forms::Label^  label3;
+	public: 
+	private: System::Windows::Forms::Label^  label4;
+
+
+	private: 
+	public: 
+	private: 
+
 	private: 
 
 	public: 
@@ -104,14 +113,14 @@ namespace ArduinoTHC {
 			this->lblCurrentPort = (gcnew System::Windows::Forms::Label());
 			this->groupBox1 = (gcnew System::Windows::Forms::GroupBox());
 			this->chkTHCEnabled = (gcnew System::Windows::Forms::CheckBox());
-			this->btnRestartSerial = (gcnew System::Windows::Forms::Button());
-			this->chkBoxRestartSerial = (gcnew System::Windows::Forms::CheckBox());
+			this->label3 = (gcnew System::Windows::Forms::Label());
+			this->label4 = (gcnew System::Windows::Forms::Label());
 			this->groupBox1->SuspendLayout();
 			this->SuspendLayout();
 			// 
 			// OKButton
 			// 
-			this->OKButton->Location = System::Drawing::Point(12, 148);
+			this->OKButton->Location = System::Drawing::Point(12, 137);
 			this->OKButton->Name = L"OKButton";
 			this->OKButton->Size = System::Drawing::Size(75, 23);
 			this->OKButton->TabIndex = 0;
@@ -122,7 +131,7 @@ namespace ArduinoTHC {
 			// CancelButton
 			// 
 			this->CancelButton->DialogResult = System::Windows::Forms::DialogResult::Cancel;
-			this->CancelButton->Location = System::Drawing::Point(114, 148);
+			this->CancelButton->Location = System::Drawing::Point(113, 137);
 			this->CancelButton->Name = L"CancelButton";
 			this->CancelButton->Size = System::Drawing::Size(75, 23);
 			this->CancelButton->TabIndex = 1;
@@ -181,45 +190,42 @@ namespace ArduinoTHC {
 			// chkTHCEnabled
 			// 
 			this->chkTHCEnabled->AutoSize = true;
-			this->chkTHCEnabled->Location = System::Drawing::Point(21, 112);
+			this->chkTHCEnabled->Location = System::Drawing::Point(22, 111);
 			this->chkTHCEnabled->Name = L"chkTHCEnabled";
 			this->chkTHCEnabled->Size = System::Drawing::Size(149, 17);
 			this->chkTHCEnabled->TabIndex = 13;
 			this->chkTHCEnabled->Text = L"THC Enabled On Start-Up";
 			this->chkTHCEnabled->UseVisualStyleBackColor = true;
 			// 
-			// btnRestartSerial
+			// label3
 			// 
-			this->btnRestartSerial->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 8.25F, System::Drawing::FontStyle::Italic, System::Drawing::GraphicsUnit::Point, 
+			this->label3->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 8.25F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point, 
 				static_cast<System::Byte>(0)));
-			this->btnRestartSerial->ForeColor = System::Drawing::Color::Red;
-			this->btnRestartSerial->Location = System::Drawing::Point(15, 82);
-			this->btnRestartSerial->Name = L"btnRestartSerial";
-			this->btnRestartSerial->Size = System::Drawing::Size(171, 21);
-			this->btnRestartSerial->TabIndex = 14;
-			this->btnRestartSerial->Text = L"Restart Serial Port";
-			this->btnRestartSerial->UseVisualStyleBackColor = true;
-			this->btnRestartSerial->Click += gcnew System::EventHandler(this, &PlugInControlDialog::btnRestartSerial_Click);
+			this->label3->Location = System::Drawing::Point(19, 79);
+			this->label3->Name = L"label3";
+			this->label3->Size = System::Drawing::Size(47, 34);
+			this->label3->TabIndex = 16;
+			this->label3->Text = L"NOTE:";
 			// 
-			// chkBoxRestartSerial
+			// label4
 			// 
-			this->chkBoxRestartSerial->AutoSize = true;
-			this->chkBoxRestartSerial->Location = System::Drawing::Point(177, 113);
-			this->chkBoxRestartSerial->Name = L"chkBoxRestartSerial";
-			this->chkBoxRestartSerial->Size = System::Drawing::Size(15, 14);
-			this->chkBoxRestartSerial->TabIndex = 15;
-			this->chkBoxRestartSerial->UseVisualStyleBackColor = true;
-			this->chkBoxRestartSerial->Visible = false;
+			this->label4->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 8.25F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point, 
+				static_cast<System::Byte>(0)));
+			this->label4->Location = System::Drawing::Point(58, 79);
+			this->label4->Name = L"label4";
+			this->label4->Size = System::Drawing::Size(128, 32);
+			this->label4->TabIndex = 17;
+			this->label4->Text = L"Port change requires Mach3 Restart!";
 			// 
 			// PlugInControlDialog
 			// 
 			this->AcceptButton = this->OKButton;
 			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->ClientSize = System::Drawing::Size(198, 183);
+			this->ClientSize = System::Drawing::Size(198, 170);
 			this->ControlBox = false;
-			this->Controls->Add(this->chkBoxRestartSerial);
-			this->Controls->Add(this->btnRestartSerial);
+			this->Controls->Add(this->label4);
+			this->Controls->Add(this->label3);
 			this->Controls->Add(this->chkTHCEnabled);
 			this->Controls->Add(this->groupBox1);
 			this->Controls->Add(this->lblCurrentPort);
@@ -241,11 +247,6 @@ private: System::Void OKButton_Click(System::Object^  sender, System::EventArgs^
 			 this->DialogResult = System::Windows::Forms::DialogResult::OK;
 			 this->Close();
 		 }
-	private: System::Void btnRestartSerial_Click(System::Object^  sender, System::EventArgs^  e)
-			 {
-			 this->chkBoxRestartSerial->Checked = true;
-			 this->DialogResult = System::Windows::Forms::DialogResult::OK;
-			 this->Close();
-			 }
+
 };
 }

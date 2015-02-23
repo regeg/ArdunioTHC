@@ -56,6 +56,8 @@ void TorchDown()
 	// Set the flags for torch status.
 	currentStateData.torchDown = true;
 	currentStateData.torchUp = false;
+        // Start the kerf timer.
+        currentStateData.kerfTimer.startTimer();
 	}
 
 
@@ -95,6 +97,8 @@ void TorchGood()
 	// Set the flags for torch status.
 	currentStateData.torchDown = false;
 	currentStateData.torchUp = false;
+	currentStateData.kerfEncountered = false;
+	currentStateData.runVoltageControl = true;
 	}
 
 
@@ -114,7 +118,8 @@ void SignalUpdateForTorchOrArcOff()
 
 void StateCuttingHandler()
 	{
-
+        int cutVoltDelta;
+        
 	//
 	// Check for ARC GOOD changes
 	//
@@ -181,6 +186,9 @@ void StateCuttingHandler()
                         // Turn voltage control back on
                         // Set flag to "no kerf"
                         TorchKerfCrossed();
+                     else
+                       // Still in the kerf, so don't do anything.
+                       return;
                     }
 
 		// This is the initial start of cut case, so see if the timer has expired.
@@ -235,30 +243,27 @@ void StateCuttingHandler()
 	//
 	else if (currentStateData.torchDown)
 		{
-                // Track the highest voltage reached.
-                if (currentStateData.currentVoltage > currentStateData.kerfVoltage)
-                   currentStateData.kerfVoltage = currentStateData.currentVoltage;
-
 		// Check to see if the torch is low enough.
 		if (currentStateData.currentVoltage <=
 			(currentStateData.voltSetPoint + VOLTAGE_OFF_HYSTERESIS))
 			{
 			// Handle case of torch at height.
 			TorchGood();
-                        // If we were in a kerf, clear it.
-                        if (currentStateData.kerfEncountered)
-                           TorchKerfCrossed();
 			}
+
                 // Test for encountering a Kerf
 		else if (!currentStateData.kerfEncountered)
                         {
-                             // Give it some time to see if voltage is still climbing, if so, we're on a kerf.
+                             // Give it some time to see if the slope of the voltage climb is too high,
+                             // or if we've exeeded the cut voltage by 3 volts.  If so, we're on a kerf.
                              // At 100 ipm with a 0.06 kerf width, you will be halfway across in 18 ms.
-                             if(currentStateData.kerfTimer.elapsedMilliSeconds() > 30)
+                             if(currentStateData.kerfTimer.elapsedMilliSeconds() > 12)
                              {
-                                // If voltage is still rising after 10 ms and it's at least 3 times the turn on hysterisis, we're on a kerf
-                                if ( (currentStateData.currentVoltage >= currentStateData.kerfVoltage) &&
-                                     (currentStateData.currentVoltage > (currentStateData.voltSetPoint + (3 * VOLTAGE_ON_HYSTERESIS))) )
+                             // Determine how many counts we're over the setpoint.
+                             cutVoltDelta = currentStateData.currentVoltage - currentStateData.voltSetPoint;
+                             // See if the slope is too high or we've climbed too high.
+                             if ( (((cutVoltDelta * 10) / currentStateData.kerfTimer.elapsedMilliSeconds()) >= 10) ||
+                                   (cutVoltDelta > (COUNTS_PER_VOLT * 3)) )
                                    // Kerf encountered.
                                    TorchKerf();
                              }

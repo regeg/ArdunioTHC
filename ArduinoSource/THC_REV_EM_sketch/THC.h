@@ -25,6 +25,7 @@
 //
 //#define NUM_DISPLAY_READINGS 20
 
+#define COUNTS_PER_VOLT 7
 
 // Define the noise floor for the analog voltage so you can
 // display 0 when there is no voltage.
@@ -109,7 +110,7 @@ typedef struct
 		Timer cutStartTime;
 
 		bool kerfEncountered;
-		unsigned int kerfVoltage;
+//		unsigned int kerfVoltage;
 		Timer kerfTimer;
 } StateData;
 
